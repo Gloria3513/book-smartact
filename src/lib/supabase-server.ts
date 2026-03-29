@@ -15,7 +15,13 @@ export async function createServerSupabaseClient() {
         setAll(cookiesToSet) {
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
+              cookieStore.set(name, value, {
+                ...options,
+                domain: '.smartact.kr',
+                path: '/',
+                sameSite: 'lax',
+                secure: true,
+              })
             );
           } catch {
             // Server Component에서는 쿠키 설정 불가
