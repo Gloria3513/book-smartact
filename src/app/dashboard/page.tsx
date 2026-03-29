@@ -195,6 +195,14 @@ export default function DashboardPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            {user?.role === 'admin' && (
+              <a
+                href="/dashboard/admin"
+                className="px-4 py-2 border border-teal-200 text-teal-600 rounded-lg hover:bg-teal-50 transition text-sm"
+              >
+                관리
+              </a>
+            )}
             {isNotAdmin && (
               <span className="text-sm text-gray-500">
                 {books.length} / {MAX_BOOKS}권
