@@ -25,8 +25,26 @@ export default function DashboardPage() {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://book.smartact.kr';
 
   useEffect(() => {
-    loadData();
+    initSession();
   }, []);
+
+  const initSession = async () => {
+    // 스마택트에서 토큰 전달받은 경우 세션 설정
+    const params = new URLSearchParams(window.location.search);
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+
+    if (accessToken && refreshToken) {
+      await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+      // URL에서 토큰 제거 (깔끔하게)
+      window.history.replaceState({}, '', '/dashboard');
+    }
+
+    loadData();
+  };
 
   const loadData = async () => {
     const { data: { user: authUser } } = await supabase.auth.getUser();

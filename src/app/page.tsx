@@ -1,6 +1,34 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase';
 
 export default function HomePage() {
+  const [loggedIn, setLoggedIn] = useState(false);
+  const supabase = createClient();
+
+  useEffect(() => {
+    const init = async () => {
+      // 스마택트에서 토큰 전달받은 경우 세션 설정
+      const params = new URLSearchParams(window.location.search);
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+
+      if (accessToken && refreshToken) {
+        await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        window.history.replaceState({}, '', '/');
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      setLoggedIn(!!user);
+    };
+    init();
+  }, [supabase]);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-teal-50 via-white to-white">
       {/* 네비게이션 */}
@@ -13,18 +41,29 @@ export default function HomePage() {
           <span className="text-sm text-gray-400 mt-1">by SMARTACT</span>
         </div>
         <div className="flex items-center gap-4">
-          <Link
-            href="/login"
-            className="text-sm text-gray-600 hover:text-gray-900 transition"
-          >
-            로그인
-          </Link>
-          <Link
-            href="/dashboard"
-            className="px-4 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 transition"
-          >
-            대시보드
-          </Link>
+          {loggedIn ? (
+            <Link
+              href="/dashboard"
+              className="px-4 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 transition"
+            >
+              대시보드
+            </Link>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="text-sm text-gray-600 hover:text-gray-900 transition"
+              >
+                로그인
+              </Link>
+              <Link
+                href="/signup"
+                className="px-4 py-2 bg-teal-600 text-white text-sm rounded-lg hover:bg-teal-700 transition"
+              >
+                시작하기
+              </Link>
+            </>
+          )}
         </div>
       </nav>
 
@@ -42,10 +81,10 @@ export default function HomePage() {
         </p>
         <div className="mt-10 flex items-center justify-center gap-4">
           <Link
-            href="/dashboard"
+            href={loggedIn ? '/dashboard' : '/login'}
             className="px-8 py-3 bg-teal-600 text-white rounded-xl text-lg font-medium hover:bg-teal-700 transition shadow-lg shadow-teal-200"
           >
-            시작하기
+            {loggedIn ? '대시보드로 이동' : '시작하기'}
           </Link>
         </div>
 
