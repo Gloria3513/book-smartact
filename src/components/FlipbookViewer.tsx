@@ -40,34 +40,17 @@ const Page = ({ pageUrl, pageNumber, totalPages }: PageProps) => {
   );
 };
 
-// 페이지 넘기는 소리 합성
+// 페이지 넘기는 소리
+let flipAudio: HTMLAudioElement | null = null;
+
 function playFlipSound(enabled: boolean) {
   if (!enabled) return;
-  const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-  const dur = 0.55, sr = ctx.sampleRate, len = sr * dur;
-  const buf = ctx.createBuffer(2, len, sr);
-
-  for (let ch = 0; ch < 2; ch++) {
-    const d = buf.getChannelData(ch);
-    for (let i = 0; i < len; i++) {
-      const t = i / sr;
-      const att = 1 - Math.exp(-t * 40);
-      const dec = Math.exp(-t * 4.5);
-      const env = att * dec;
-      const n = (Math.random() * 2 - 1);
-      const sw = Math.sin(2 * Math.PI * (1800 * Math.exp(-t * 3) + 400) * t) * 0.12;
-      const r = Math.sin(t * 900 + Math.sin(t * 350) * 2.5) * 0.06 * Math.exp(-t * 5);
-      d[i] = (n * 0.05 + sw + r) * env * (ch === 0 ? 1 : 0.85);
-    }
+  if (!flipAudio) {
+    flipAudio = new Audio('/page-flip.mp3');
   }
-
-  const src = ctx.createBufferSource();
-  src.buffer = buf;
-  const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2200; bp.Q.value = 0.35;
-  const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 500;
-  const g = ctx.createGain(); g.gain.value = 0.45;
-  src.connect(bp); bp.connect(hp); hp.connect(g); g.connect(ctx.destination);
-  src.start();
+  flipAudio.currentTime = 0;
+  flipAudio.volume = 0.5;
+  flipAudio.play().catch(() => {});
 }
 
 export default function FlipbookViewer({ pdfUrl, title, embedded = false }: FlipbookViewerProps) {
