@@ -26,7 +26,8 @@ export interface Library {
 
 export interface Book {
   id: string;
-  library_id: string;
+  library_id: string | null;
+  owner_id: string | null;
   title: string;
   cover_image: string | null;
   pdf_url: string;
