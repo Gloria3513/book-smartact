@@ -96,8 +96,9 @@ export default function LibraryDetailPage() {
 
       loadData();
     } catch (error) {
-      console.error('업로드 실패:', error);
-      alert('업로드에 실패했습니다.');
+      const msg = error instanceof Error ? error.message : JSON.stringify(error, null, 2);
+      console.error('업로드 상세 에러:', JSON.stringify(error, null, 2));
+      alert(`업로드 실패: ${msg}`);
     } finally {
       setUploading(false);
     }

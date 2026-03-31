@@ -116,7 +116,9 @@ export default function DashboardPage() {
       loadData();
     } catch (error) {
       console.error('업로드 실패:', error);
-      alert('업로드에 실패했습니다.');
+      const msg = error instanceof Error ? error.message : JSON.stringify(error, null, 2);
+      console.error('업로드 상세 에러:', JSON.stringify(error, null, 2));
+      alert(`업로드 실패: ${msg}\n\n브라우저 콘솔(F12)에서 상세 에러를 확인하세요.`);
     } finally {
       setUploading(false);
     }
