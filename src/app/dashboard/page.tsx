@@ -96,7 +96,8 @@ export default function DashboardPage() {
 
     setUploading(true);
     try {
-      const fileName = `${authUser.id}/${Date.now()}_${file.name}`;
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const fileName = `${authUser.id}/${Date.now()}_${safeName}`;
       const { error: uploadError } = await supabase.storage
         .from('flipbooks')
         .upload(fileName, file);

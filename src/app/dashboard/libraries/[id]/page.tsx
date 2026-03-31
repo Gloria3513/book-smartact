@@ -74,7 +74,8 @@ export default function LibraryDetailPage() {
 
     setUploading(true);
     try {
-      const fileName = `${libraryId}/${Date.now()}_${file.name}`;
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const fileName = `${libraryId}/${Date.now()}_${safeName}`;
       const { error: uploadError } = await supabase.storage
         .from('flipbooks')
         .upload(fileName, file);
