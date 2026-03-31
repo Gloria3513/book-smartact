@@ -58,6 +58,7 @@ export default function FlipbookViewer({ pdfUrl, title, embedded = false }: Flip
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const flipBookRef = useRef<ReturnType<typeof HTMLFlipBook> | null>(null);
@@ -107,7 +108,8 @@ export default function FlipbookViewer({ pdfUrl, title, embedded = false }: Flip
 
         setPages(pageImages);
       } catch (error) {
-        console.error('PDF 로딩 실패:', error);
+        console.error('PDF 로딩 실패:', error, 'URL:', pdfUrl);
+        setError(`PDF 로딩 실패: ${error instanceof Error ? error.message : String(error)}`);
       } finally {
         setLoading(false);
       }
@@ -178,6 +180,8 @@ export default function FlipbookViewer({ pdfUrl, title, embedded = false }: Flip
     return (
       <div className="flex items-center justify-center min-h-[400px] text-gray-500">
         PDF를 불러올 수 없습니다.
+        {error && <p className="text-xs text-red-400 mt-2 max-w-md break-all">{error}</p>}
+        <p className="text-xs text-gray-300 mt-1 max-w-md break-all">{pdfUrl}</p>
       </div>
     );
   }
