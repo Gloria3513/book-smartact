@@ -1,16 +1,15 @@
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+import { createBrowserClient } from '@supabase/ssr';
 
 export function createClient() {
-  return createSupabaseClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      flowType: 'pkce',
-      detectSessionInUrl: true,
-      persistSession: true,
-      autoRefreshToken: true,
-      storageKey: 'sb-jyjlzdqwiyzelveyrldb-auth-token',
-    },
-  });
+  const isProd = process.env.NODE_ENV === 'production';
+
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookieOptions: isProd
+        ? { domain: '.smartact.kr', path: '/', sameSite: 'lax', secure: true }
+        : { path: '/', sameSite: 'lax' },
+    }
+  );
 }

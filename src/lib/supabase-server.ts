@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 
 export async function createServerSupabaseClient() {
   const cookieStore = await cookies();
+  const isProd = process.env.NODE_ENV === 'production';
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,10 +18,10 @@ export async function createServerSupabaseClient() {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, {
                 ...options,
-                domain: '.smartact.kr',
+                ...(isProd && { domain: '.smartact.kr' }),
                 path: '/',
                 sameSite: 'lax',
-                secure: true,
+                secure: isProd,
               })
             );
           } catch {
