@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase';
 import Link from 'next/link';
 
@@ -9,20 +9,55 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [resending, setResending] = useState(false);
+  const [resent, setResent] = useState(false);
   const supabase = createClient();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const authError = params.get('auth_error');
+    if (authError === 'exchange_failed') {
+      setError('OAuth 로그인 중 문제가 발생했습니다. 같은 브라우저에서 다시 시도하거나 이메일/비밀번호 로그인을 사용해주세요.');
+    } else if (authError) {
+      setError(`로그인 실패: ${authError}`);
+    }
+  }, []);
+
+  const getFriendlyError = (msg: string): string => {
+    const m = msg.toLowerCase();
+    if (m.includes('email not confirmed')) return 'EMAIL_NOT_CONFIRMED';
+    if (m.includes('invalid login') || m.includes('invalid credentials')) return '이메일 또는 비밀번호가 올바르지 않습니다.';
+    if (m.includes('rate limit') || m.includes('too many')) return '잠시 후 다시 시도해주세요. (요청 제한)';
+    if (m.includes('network') || m.includes('failed to fetch')) return '네트워크 오류가 발생했습니다. 연결을 확인해주세요.';
+    return `로그인 실패: ${msg}`;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setResent(false);
 
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      setError('이메일 또는 비밀번호가 올바르지 않습니다.');
+      setError(getFriendlyError(error.message));
       setLoading(false);
     } else {
       window.location.href = '/dashboard';
     }
+  };
+
+  const handleResendConfirmation = async () => {
+    if (!email) return;
+    setResending(true);
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+    });
+    setResending(false);
+    if (!error) setResent(true);
+    else setError(`인증 메일 재전송 실패: ${error.message}`);
   };
 
   const handleGoogleLogin = async () => {
@@ -55,11 +90,28 @@ export default function LoginPage() {
         <div className="bg-white rounded-2xl shadow-lg p-8">
           <h2 className="text-xl font-semibold text-gray-900 mb-6">로그인</h2>
 
-          {error && (
+          {error === 'EMAIL_NOT_CONFIRMED' ? (
+            <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-lg mb-4 text-sm">
+              <p className="font-medium mb-1">이메일 인증이 필요합니다</p>
+              <p>가입 시 받으신 메일의 인증 링크를 클릭해주세요. 메일이 없다면 아래 버튼으로 재전송할 수 있습니다.</p>
+              {resent ? (
+                <p className="mt-2 text-teal-700 font-medium">✓ 인증 메일을 재전송했습니다. 메일함을 확인해주세요.</p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleResendConfirmation}
+                  disabled={resending || !email}
+                  className="mt-2 text-teal-700 underline hover:no-underline disabled:opacity-50"
+                >
+                  {resending ? '전송 중...' : '인증 메일 재전송'}
+                </button>
+              )}
+            </div>
+          ) : error ? (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">
               {error}
             </div>
-          )}
+          ) : null}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
