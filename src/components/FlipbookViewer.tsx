@@ -10,6 +10,8 @@ interface FlipbookViewerProps {
   pdfUrl: string;
   title?: string;
   embedded?: boolean;
+  r2BaseUrl?: string | null;
+  pageCount?: number | null;
 }
 
 interface PageProps {
@@ -53,7 +55,8 @@ function playFlipSound(enabled: boolean) {
   flipAudio.play().catch(() => {});
 }
 
-export default function FlipbookViewer({ pdfUrl, title, embedded = false }: FlipbookViewerProps) {
+export default function FlipbookViewer({ pdfUrl, title, embedded = false, r2BaseUrl, pageCount: r2PageCount }: FlipbookViewerProps) {
+  const useR2 = !!(r2BaseUrl && r2PageCount && r2PageCount > 0);
   const [pages, setPages] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
@@ -86,6 +89,18 @@ export default function FlipbookViewer({ pdfUrl, title, embedded = false }: Flip
   }, [updateDimensions]);
 
   useEffect(() => {
+    // R2 이미지 경로가 있으면 PDF 렌더링 스킵 (이미지 URL만 생성)
+    if (useR2 && r2BaseUrl && r2PageCount) {
+      const urls: string[] = [];
+      for (let i = 1; i <= r2PageCount; i++) {
+        urls.push(`${r2BaseUrl}/${String(i).padStart(3, '0')}.webp`);
+      }
+      setPages(urls);
+      setTotalPages(r2PageCount);
+      setLoading(false);
+      return;
+    }
+
     const loadPdf = async () => {
       try {
         setLoading(true);
@@ -117,7 +132,7 @@ export default function FlipbookViewer({ pdfUrl, title, embedded = false }: Flip
     };
 
     loadPdf();
-  }, [pdfUrl]);
+  }, [pdfUrl, useR2, r2BaseUrl, r2PageCount]);
 
   // 전체화면 감지
   useEffect(() => {

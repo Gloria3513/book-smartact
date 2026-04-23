@@ -107,14 +107,24 @@ export default function DashboardPage() {
         .from('flipbooks')
         .getPublicUrl(fileName);
 
-      await supabase.from('book_items').insert({
+      const { data: inserted } = await supabase.from('book_items').insert({
         title: file.name.replace('.pdf', ''),
         pdf_url: publicUrl,
         owner_id: authUser.id,
         sort_order: 0,
-      });
+        status: 'pending',
+      }).select().single();
 
       loadData();
+
+      // R2 변환 백그라운드 트리거 (실패해도 PDF 뷰어로 fallback)
+      if (inserted?.id) {
+        fetch('/api/flipbook/process', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bookId: inserted.id }),
+        }).then(() => loadData()).catch(() => {});
+      }
     } catch (error) {
       console.error('업로드 실패:', error);
       const msg = error instanceof Error ? error.message : JSON.stringify(error, null, 2);

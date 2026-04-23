@@ -24,6 +24,8 @@ export interface Library {
   owner?: User;
 }
 
+export type BookStatus = 'pending' | 'processing' | 'ready' | 'failed';
+
 export interface Book {
   id: string;
   library_id: string | null;
@@ -35,4 +37,7 @@ export interface Book {
   sort_order: number;
   created_at: string;
   updated_at: string;
+  r2_base_url: string | null;
+  status: BookStatus;
+  error_message: string | null;
 }

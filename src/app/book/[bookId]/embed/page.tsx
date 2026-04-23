@@ -23,7 +23,13 @@ export default async function EmbedBookPage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center p-2">
-      <FlipbookViewer pdfUrl={book.pdf_url} title={book.title} embedded />
+      <FlipbookViewer
+        pdfUrl={book.pdf_url}
+        title={book.title}
+        r2BaseUrl={book.r2_base_url}
+        pageCount={book.page_count}
+        embedded
+      />
     </div>
   );
 }

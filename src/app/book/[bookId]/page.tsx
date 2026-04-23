@@ -23,7 +23,12 @@ export default async function BookPage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <FlipbookViewer pdfUrl={book.pdf_url} title={book.title} />
+      <FlipbookViewer
+        pdfUrl={book.pdf_url}
+        title={book.title}
+        r2BaseUrl={book.r2_base_url}
+        pageCount={book.page_count}
+      />
     </div>
   );
 }
