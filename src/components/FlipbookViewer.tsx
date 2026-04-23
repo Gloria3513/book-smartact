@@ -70,8 +70,8 @@ export default function FlipbookViewer({ pdfUrl, title, embedded = false }: Flip
     if (containerRef.current) {
       const containerWidth = containerRef.current.offsetWidth;
       const containerHeight = containerRef.current.offsetHeight || window.innerHeight - 120;
-      const maxPageWidth = Math.min(containerWidth / 2 - 20, 600);
-      const maxPageHeight = containerHeight - 80;
+      const maxPageWidth = containerWidth / 2 - 20;
+      const maxPageHeight = containerHeight - 40;
       const pageWidth = Math.min(maxPageWidth, maxPageHeight / 1.414);
       const pageHeight = pageWidth * 1.414;
       setDimensions({ width: Math.max(pageWidth, 280), height: Math.max(pageHeight, 400) });
@@ -215,8 +215,19 @@ export default function FlipbookViewer({ pdfUrl, title, embedded = false }: Flip
       {/* 메인 뷰어 */}
       <div
         ref={containerRef}
-        className="flex-1 flex items-center justify-center relative px-16 py-4 overflow-hidden"
+        className="flex-1 flex items-center justify-center relative px-16 py-2 overflow-hidden"
       >
+        {/* 스마택트 로고 (좌측 하단) */}
+        <a
+          href="https://smartact.kr"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="absolute bottom-3 left-4 z-20 opacity-70 hover:opacity-100 transition"
+          title="스마택트"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/smartact-logo.png" alt="SMARTACT" className="h-8 sm:h-10 w-auto" />
+        </a>
         {/* 좌측 화살표 */}
         <button
           onClick={goToPrev}
@@ -235,9 +246,9 @@ export default function FlipbookViewer({ pdfUrl, title, embedded = false }: Flip
             height={dimensions.height}
             size="stretch"
             minWidth={280}
-            maxWidth={600}
+            maxWidth={1400}
             minHeight={400}
-            maxHeight={850}
+            maxHeight={2000}
             showCover={true}
             maxShadowOpacity={0.5}
             drawShadow={true}
