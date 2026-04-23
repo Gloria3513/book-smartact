@@ -68,12 +68,13 @@ export default function FlipbookViewer({ pdfUrl, title, embedded = false }: Flip
 
   const updateDimensions = useCallback(() => {
     if (containerRef.current) {
-      const containerWidth = containerRef.current.offsetWidth;
+      const containerWidth = containerRef.current.offsetWidth || window.innerWidth;
       const containerHeight = containerRef.current.offsetHeight || window.innerHeight - 120;
-      const maxPageWidth = containerWidth / 2 - 20;
-      const maxPageHeight = containerHeight - 40;
-      const pageWidth = Math.min(maxPageWidth, maxPageHeight / 1.414);
-      const pageHeight = pageWidth * 1.414;
+      // 양면 펼쳐서 가로/세로 모두 여유 있게 (로고+프로그레스바 고려)
+      const maxPageWidth = (containerWidth - 160) / 2;
+      const maxPageHeight = containerHeight - 60;
+      const pageWidth = Math.floor(Math.min(maxPageWidth, maxPageHeight / 1.414));
+      const pageHeight = Math.floor(pageWidth * 1.414);
       setDimensions({ width: Math.max(pageWidth, 280), height: Math.max(pageHeight, 400) });
     }
   }, []);
@@ -241,10 +242,11 @@ export default function FlipbookViewer({ pdfUrl, title, embedded = false }: Flip
         <div className="shadow-2xl">
           {/* @ts-expect-error - react-pageflip 타입 이슈 */}
           <HTMLFlipBook
+            key={`${dimensions.width}x${dimensions.height}`}
             ref={flipBookRef}
             width={dimensions.width}
             height={dimensions.height}
-            size="stretch"
+            size="fixed"
             minWidth={280}
             maxWidth={1400}
             minHeight={400}
