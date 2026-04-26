@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import type { Library } from '@/types';
-import { findTemplate, isTemplateValue, templateKey } from '@/lib/library-templates';
+import { findTemplate, isTemplateValue, templateKey, DECOR_SLOTS, type LibraryTemplate } from '@/lib/library-templates';
 
 interface LibraryCardProps {
   library: Library;
@@ -60,9 +60,11 @@ export default function LibraryCard({ library, isOwner = false, onTogglePublic }
 export function LibraryCover({
   library,
   className = '',
+  size = 'thumb',
 }: {
   library: Library;
   className?: string;
+  size?: 'thumb' | 'preview' | 'option';
 }) {
   const cover = library.cover_image;
   const bookCount = library.book_items?.length ?? 0;
@@ -71,23 +73,7 @@ export function LibraryCover({
   if (isTemplateValue(cover)) {
     const tpl = findTemplate(templateKey(cover));
     if (tpl) {
-      return (
-        <div
-          className={`flex items-center justify-center relative ${className}`}
-          style={{ background: tpl.background }}
-        >
-          <div className="flex flex-col items-center gap-2" style={{ color: tpl.textColor }}>
-            <span className="text-5xl drop-shadow-sm">{tpl.emoji}</span>
-            <span className="text-sm font-semibold drop-shadow-sm">{library.title}</span>
-            <span className="text-xs opacity-90">{bookCount}권</span>
-          </div>
-          {!library.is_public ? (
-            <span className="absolute top-2 right-2 bg-gray-800 text-white text-xs px-2 py-1 rounded">비공개</span>
-          ) : (
-            <span className="absolute top-2 right-2 bg-green-600 text-white text-xs px-2 py-1 rounded">공개</span>
-          )}
-        </div>
-      );
+      return <TemplateCover template={tpl} title={library.title} bookCount={bookCount} isPublic={library.is_public} className={className} size={size} />;
     }
   }
 
@@ -133,6 +119,74 @@ export function LibraryCover({
         <span className="absolute top-2 right-2 bg-gray-800 text-white text-xs px-2 py-1 rounded">비공개</span>
       ) : (
         <span className="absolute top-2 right-2 bg-green-600 text-white text-xs px-2 py-1 rounded">공개</span>
+      )}
+    </div>
+  );
+}
+
+// 템플릿 표지: 데코 이모지를 흩뿌려 풍성하게
+// size: 'thumb'(카드 썸네일) | 'preview'(상세 미리보기) | 'option'(모달 선택지)
+export function TemplateCover({
+  template,
+  title,
+  bookCount,
+  isPublic,
+  className = '',
+  showMeta = true,
+  size = 'thumb',
+}: {
+  template: LibraryTemplate;
+  title?: string;
+  bookCount?: number;
+  isPublic?: boolean;
+  className?: string;
+  showMeta?: boolean;
+  size?: 'thumb' | 'preview' | 'option';
+}) {
+  const baseFontPx = size === 'preview' ? 96 : size === 'option' ? 44 : 64;
+  const decors = template.decorEmojis.slice(0, DECOR_SLOTS.length);
+
+  return (
+    <div
+      className={`relative overflow-hidden ${className}`}
+      style={{ background: template.background, color: template.textColor, fontSize: `${baseFontPx}px` }}
+    >
+      {decors.map((emoji, i) => {
+        const slot = DECOR_SLOTS[i];
+        const style: React.CSSProperties = {
+          position: 'absolute',
+          fontSize: `${slot.sizeEm}em`,
+          opacity: slot.opacity,
+          transform: `rotate(${slot.rotate}deg)`,
+          pointerEvents: 'none',
+          lineHeight: 1,
+          ...('top' in slot && slot.top !== undefined ? { top: slot.top } : {}),
+          ...('bottom' in slot && slot.bottom !== undefined ? { bottom: slot.bottom } : {}),
+          ...('left' in slot && slot.left !== undefined ? { left: slot.left } : {}),
+          ...('right' in slot && slot.right !== undefined ? { right: slot.right } : {}),
+        };
+        return <span key={i} style={style} aria-hidden>{emoji}</span>;
+      })}
+
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-3">
+        <span style={{ fontSize: '1em', lineHeight: 1 }} className="drop-shadow-sm">{template.mainEmoji}</span>
+        {showMeta && title && (
+          <span style={{ fontSize: '0.22em', lineHeight: 1.2 }} className="mt-2 font-semibold drop-shadow-sm line-clamp-2">{title}</span>
+        )}
+        {showMeta && typeof bookCount === 'number' && (
+          <span style={{ fontSize: '0.18em' }} className="mt-1 opacity-90">{bookCount}권</span>
+        )}
+      </div>
+
+      {typeof isPublic === 'boolean' && (
+        <span
+          className={`absolute top-2 right-2 text-xs px-2 py-1 rounded ${
+            isPublic ? 'bg-green-600 text-white' : 'bg-gray-800 text-white'
+          }`}
+          style={{ fontSize: '11px' }}
+        >
+          {isPublic ? '공개' : '비공개'}
+        </span>
       )}
     </div>
   );

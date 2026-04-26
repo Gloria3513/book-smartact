@@ -4,8 +4,15 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import type { Library, Book, User } from '@/types';
-import { LibraryCover } from '@/components/LibraryCard';
-import { LIBRARY_TEMPLATES, templateValue, isTemplateValue, templateKey } from '@/lib/library-templates';
+import { LibraryCover, TemplateCover } from '@/components/LibraryCard';
+import {
+  templateValue,
+  isTemplateValue,
+  templateKey,
+  CATEGORY_ORDER,
+  CATEGORY_LABELS,
+  templatesByCategory,
+} from '@/lib/library-templates';
 
 export default function LibraryDetailPage() {
   const params = useParams();
@@ -290,6 +297,7 @@ export default function LibraryDetailPage() {
             <LibraryCover
               library={{ ...library, book_items: books }}
               className="aspect-[3/2]"
+              size="preview"
             />
           </div>
           <div className="flex-1 space-y-2">
@@ -415,57 +423,76 @@ export default function LibraryDetailPage() {
       {/* 표지 선택 모달 */}
       {showCoverModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold text-gray-900 mb-2">표지 선택</h2>
-            <p className="text-sm text-gray-500 mb-4">
-              템플릿을 고르거나, 첫 책의 표지를 자동으로 사용할 수 있어요.
-            </p>
+          <div className="bg-white rounded-2xl w-full max-w-3xl p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">표지 선택</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  연령·테마별 템플릿을 고르거나, 첫 책 표지를 자동으로 쓸 수 있어요.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowCoverModal(false)}
+                className="text-gray-400 hover:text-gray-700 transition text-xl leading-none"
+                aria-label="닫기"
+              >
+                ✕
+              </button>
+            </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
-              {/* 첫 책 자동 옵션 */}
+            {/* 첫 책 자동 옵션 */}
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">기본</h3>
               <button
                 onClick={() => updateLibraryCover(null)}
-                className={`group relative aspect-[3/2] rounded-xl overflow-hidden border-2 transition ${
+                className={`group relative aspect-[3/2] w-full max-w-[180px] rounded-xl overflow-hidden border-2 transition ${
                   !library.cover_image ? 'border-teal-500 ring-2 ring-teal-200' : 'border-gray-200 hover:border-teal-300'
                 }`}
               >
                 <div className="w-full h-full bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
                   <div className="text-center px-2">
-                    <div className="text-2xl mb-1">📚</div>
+                    <div className="text-3xl mb-1">📚</div>
                     <div className="text-xs font-semibold text-gray-700">첫 책 자동</div>
-                    <div className="text-[10px] text-gray-500 mt-0.5">책의 표지를 사용</div>
+                    <div className="text-[10px] text-gray-500 mt-0.5">책 표지 그대로</div>
                   </div>
                 </div>
               </button>
-
-              {LIBRARY_TEMPLATES.map((tpl) => {
-                const selected = isTemplateValue(library.cover_image) && templateKey(library.cover_image) === tpl.key;
-                return (
-                  <button
-                    key={tpl.key}
-                    onClick={() => updateLibraryCover(templateValue(tpl.key))}
-                    className={`group relative aspect-[3/2] rounded-xl overflow-hidden border-2 transition ${
-                      selected ? 'border-teal-500 ring-2 ring-teal-200' : 'border-gray-200 hover:border-teal-300'
-                    }`}
-                    style={{ background: tpl.background }}
-                  >
-                    <div className="w-full h-full flex flex-col items-center justify-center" style={{ color: tpl.textColor }}>
-                      <div className="text-3xl mb-1">{tpl.emoji}</div>
-                      <div className="text-xs font-semibold drop-shadow-sm">{tpl.name}</div>
-                    </div>
-                  </button>
-                );
-              })}
             </div>
 
-            <div className="flex justify-end">
-              <button
-                onClick={() => setShowCoverModal(false)}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm"
-              >
-                닫기
-              </button>
-            </div>
+            {/* 카테고리별 템플릿 */}
+            {CATEGORY_ORDER.map((cat) => {
+              const items = templatesByCategory(cat);
+              if (items.length === 0) return null;
+              return (
+                <div key={cat} className="mb-6">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2">{CATEGORY_LABELS[cat]}</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {items.map((tpl) => {
+                      const selected = isTemplateValue(library.cover_image) && templateKey(library.cover_image) === tpl.key;
+                      return (
+                        <button
+                          key={tpl.key}
+                          onClick={() => updateLibraryCover(templateValue(tpl.key))}
+                          className={`group relative rounded-xl overflow-hidden border-2 transition ${
+                            selected ? 'border-teal-500 ring-2 ring-teal-200' : 'border-gray-200 hover:border-teal-300'
+                          }`}
+                        >
+                          <TemplateCover
+                            template={tpl}
+                            className="aspect-[3/2]"
+                            size="option"
+                            showMeta={false}
+                          />
+                          <div className="absolute bottom-0 left-0 right-0 bg-white/85 backdrop-blur-sm py-1 text-center">
+                            <span className="text-xs font-semibold text-gray-800">{tpl.name}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
