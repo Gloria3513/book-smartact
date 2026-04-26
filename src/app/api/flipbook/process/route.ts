@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
+import { createRequire } from 'node:module';
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js';
 import { uploadToR2, r2PublicUrl, isR2Configured } from '@/lib/r2';
+
+// Vercel serverless에서 pdfjs-dist의 fake worker가
+// pdf.worker.mjs를 동적 require할 때 사용할 절대 경로 확보용.
+const nodeRequire = createRequire(import.meta.url);
 
 // 최대 120초 (50-80페이지 변환 여유)
 export const maxDuration = 120;
@@ -46,7 +51,17 @@ export async function POST(req: Request) {
     const pdfBuffer = new Uint8Array(await pdfRes.arrayBuffer());
 
     // 4. pdfjs-dist + canvas로 페이지 렌더
-    const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    // Node 환경에서 fake worker가 worker 모듈을 못 찾으면 실패하므로
+    // workerSrc를 worker 파일의 절대 경로로 명시한다.
+    try {
+      const workerPath = nodeRequire.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs');
+      (pdfjsLib as unknown as { GlobalWorkerOptions: { workerSrc: string } })
+        .GlobalWorkerOptions.workerSrc = workerPath;
+    } catch (e) {
+      console.warn('pdfjs worker 경로 해결 실패, fake worker로 진행:', e);
+    }
+    const { getDocument } = pdfjsLib;
     const { createCanvas } = await import('@napi-rs/canvas');
 
     const pdf = await getDocument({
