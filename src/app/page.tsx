@@ -3,9 +3,14 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
+import BookCard from '@/components/BookCard';
+import LibraryCard from '@/components/LibraryCard';
+import type { Book, Library } from '@/types';
 
 export default function HomePage() {
   const [loggedIn, setLoggedIn] = useState(false);
+  const [publicBooks, setPublicBooks] = useState<Book[]>([]);
+  const [publicLibraries, setPublicLibraries] = useState<Library[]>([]);
   const supabase = createClient();
 
   useEffect(() => {
@@ -28,6 +33,31 @@ export default function HomePage() {
     };
     init();
   }, [supabase]);
+
+  useEffect(() => {
+    const fetchPublic = async () => {
+      const [{ data: books }, { data: libs }] = await Promise.all([
+        supabase
+          .from('book_items')
+          .select('*')
+          .eq('is_public', true)
+          .eq('status', 'ready')
+          .order('created_at', { ascending: false })
+          .limit(10),
+        supabase
+          .from('book_libraries')
+          .select('*, book_items(id, title, cover_image, page_count, sort_order)')
+          .eq('is_public', true)
+          .order('created_at', { ascending: false })
+          .limit(6),
+      ]);
+      setPublicBooks((books as Book[]) ?? []);
+      setPublicLibraries((libs as Library[]) ?? []);
+    };
+    fetchPublic();
+  }, [supabase]);
+
+  const hasPublicContent = publicBooks.length > 0 || publicLibraries.length > 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-teal-50 via-white to-white">
@@ -74,7 +104,7 @@ export default function HomePage() {
       </nav>
 
       {/* 히어로 */}
-      <main className="max-w-6xl mx-auto px-4 pt-20 pb-32 text-center">
+      <main className="max-w-6xl mx-auto px-4 pt-20 pb-16 text-center">
         <h1 className="text-4xl md:text-6xl font-bold text-gray-900 leading-tight">
           PDF를
           <br />
@@ -92,6 +122,14 @@ export default function HomePage() {
           >
             {loggedIn ? '대시보드로 이동' : '시작하기'}
           </Link>
+          {hasPublicContent && (
+            <a
+              href="#explore"
+              className="px-8 py-3 border border-teal-200 text-teal-700 rounded-xl text-lg font-medium hover:bg-teal-50 transition"
+            >
+              구경하기
+            </a>
+          )}
         </div>
 
         {/* 기능 카드 */}
@@ -136,6 +174,100 @@ export default function HomePage() {
           </div>
         </div>
       </main>
+
+      {/* 구경하기 섹션 */}
+      {hasPublicContent && (
+        <section
+          id="explore"
+          className="relative scroll-mt-8"
+          style={{
+            background: [
+              'radial-gradient(ellipse at top, rgba(254, 243, 199, 0.6) 0%, transparent 60%)',
+              'linear-gradient(180deg, #fffbeb 0%, #fefce8 100%)',
+            ].join(','),
+          }}
+        >
+          {/* 책장 패턴 (얇은) */}
+          <div
+            aria-hidden
+            className="absolute inset-x-0 top-0 h-24 opacity-[0.06] pointer-events-none"
+            style={{
+              backgroundImage:
+                'repeating-linear-gradient(90deg, transparent 0 18px, #78350f 18px 19px, transparent 19px 30px, #92400e 30px 31px, transparent 31px 48px)',
+            }}
+          />
+
+          <div className="max-w-6xl mx-auto px-4 py-20">
+            <div className="text-center mb-12">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100/60 border border-amber-200 text-xs font-semibold text-amber-800 mb-3">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
+                지금 구경할 수 있어요
+              </div>
+              <h2 className="text-3xl md:text-4xl font-bold text-stone-900" style={{ letterSpacing: '-0.02em' }}>
+                모두의 책장
+              </h2>
+              <p className="mt-2 text-stone-500">스마택트 강사·창작자들이 공개한 플립북과 도서관</p>
+            </div>
+
+            {/* 공개 도서관 */}
+            {publicLibraries.length > 0 && (
+              <div className="mb-16">
+                <div className="flex items-end justify-between mb-5">
+                  <h3 className="text-lg font-bold text-stone-800">공개 도서관</h3>
+                  <Link href="/gallery" className="text-sm text-amber-700 hover:text-amber-900 transition">
+                    전체 보기 →
+                  </Link>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                  {publicLibraries.slice(0, 3).map((lib) => (
+                    <LibraryCard key={lib.id} library={lib} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 공개 플립북 */}
+            {publicBooks.length > 0 && (
+              <div>
+                <div className="flex items-end justify-between mb-5">
+                  <h3 className="text-lg font-bold text-stone-800">공개 플립북</h3>
+                  <Link href="/gallery" className="text-sm text-amber-700 hover:text-amber-900 transition">
+                    전체 보기 →
+                  </Link>
+                </div>
+                <div className="space-y-8">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-6 gap-y-10">
+                    {publicBooks.slice(0, 10).map((book) => (
+                      <BookCard key={book.id} book={book} />
+                    ))}
+                  </div>
+                  {/* 책장 선반 */}
+                  <div
+                    aria-hidden
+                    className="h-3 rounded-sm shadow-md"
+                    style={{
+                      background: 'linear-gradient(180deg, #b45309 0%, #92400e 50%, #78350f 100%)',
+                      boxShadow: '0 4px 8px -2px rgba(120, 53, 15, 0.3), inset 0 1px 0 rgba(255,255,255,0.15)',
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="mt-14 text-center">
+              <Link
+                href="/gallery"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-stone-900 text-white rounded-xl text-sm font-medium hover:bg-stone-800 transition shadow-md"
+              >
+                전체 구경하기
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* 푸터 */}
       <footer className="border-t border-gray-100 py-8 text-center text-sm text-gray-400">
