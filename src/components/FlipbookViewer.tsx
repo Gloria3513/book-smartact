@@ -29,10 +29,14 @@ const Page = ({ pageUrl, pageNumber, totalPages }: PageProps) => {
           alt={`페이지 ${pageNumber}`}
           className="w-full h-full object-contain"
           draggable={false}
+          // 첫 페이지(=표지)는 즉시, 나머지는 lazy로 받아 초기 로딩 가볍게
+          loading={pageNumber <= 2 ? 'eager' : 'lazy'}
+          decoding="async"
         />
       ) : (
-        <div className="flex items-center justify-center text-gray-400">
-          로딩 중...
+        <div className="flex flex-col items-center justify-center text-gray-300 gap-2">
+          <div className="w-6 h-6 border-2 border-gray-300 border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs">페이지 준비 중</span>
         </div>
       )}
       <span className="absolute bottom-2 left-0 right-0 text-center text-[10px] text-gray-300">
@@ -114,37 +118,61 @@ export default function FlipbookViewer({ pdfUrl, title, embedded = false, r2Base
       return;
     }
 
+    let cancelled = false;
     const loadPdf = async () => {
       try {
         setLoading(true);
         const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
+        if (cancelled) return;
         setTotalPages(pdf.numPages);
+        // 빈 placeholder로 먼저 채워 책 레이아웃을 잡고, 페이지가 렌더되는 대로 한 칸씩 갱신
+        setPages(new Array(pdf.numPages).fill(''));
 
-        const pageImages: string[] = [];
-        for (let i = 1; i <= pdf.numPages; i++) {
+        const renderOne = async (i: number) => {
           const page = await pdf.getPage(i);
-          const scale = 2;
+          // scale 2 → 1.5: 화질은 충분히 유지하면서 렌더 시간 절반 가까이 단축
+          const scale = 1.5;
           const viewport = page.getViewport({ scale });
-
           const canvas = document.createElement('canvas');
           const context = canvas.getContext('2d')!;
           canvas.width = viewport.width;
           canvas.height = viewport.height;
-
           await page.render({ canvasContext: context, viewport, canvas } as unknown as Parameters<typeof page.render>[0]).promise;
-          pageImages.push(canvas.toDataURL('image/jpeg', 0.85));
-        }
+          return canvas.toDataURL('image/jpeg', 0.8);
+        };
 
-        setPages(pageImages);
+        // 1) 첫 페이지(표지)만 먼저 렌더해 즉시 화면 표시
+        const firstUrl = await renderOne(1);
+        if (cancelled) return;
+        setPages(prev => {
+          const next = [...prev];
+          next[0] = firstUrl;
+          return next;
+        });
+        setLoading(false);
+
+        // 2) 나머지는 백그라운드로 하나씩 채움 (UI는 이미 응답 가능)
+        for (let i = 2; i <= pdf.numPages; i++) {
+          if (cancelled) return;
+          const url = await renderOne(i);
+          if (cancelled) return;
+          setPages(prev => {
+            const next = [...prev];
+            next[i - 1] = url;
+            return next;
+          });
+        }
       } catch (error) {
         console.error('PDF 로딩 실패:', error, 'URL:', pdfUrl);
-        setError(`PDF 로딩 실패: ${error instanceof Error ? error.message : String(error)}`);
-      } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setError(`PDF 로딩 실패: ${error instanceof Error ? error.message : String(error)}`);
+          setLoading(false);
+        }
       }
     };
 
     loadPdf();
+    return () => { cancelled = true; };
   }, [pdfUrl, useR2, r2BaseUrl, r2PageCount]);
 
   // 전체화면 감지

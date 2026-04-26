@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -15,6 +15,14 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "BOOK by SMARTACT - 플립북 서비스",
   description: "PDF를 아름다운 플립북으로 변환하고 공유하세요",
+};
+
+// viewport meta가 없으면 모바일이 데스크톱 너비(980px)로 렌더되어
+// FlipbookViewer가 양면 모드로 잡혀 화면을 넘침.
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
 };
 
 export default function RootLayout({
