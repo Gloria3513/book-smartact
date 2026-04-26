@@ -132,6 +132,27 @@ export default function LibraryDetailPage() {
     loadData();
   };
 
+  const reprocessBook = async (book: Book) => {
+    if (book.status === 'processing') return;
+    setBooks(prev => prev.map(b => (b.id === book.id ? { ...b, status: 'processing' } : b)));
+    try {
+      const res = await fetch('/api/flipbook/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookId: book.id }),
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => '');
+        throw new Error(`HTTP ${res.status} ${txt}`);
+      }
+      loadData();
+    } catch (err) {
+      console.error('표지 변환 실패:', err);
+      alert(`표지 변환에 실패했어요. 잠시 후 다시 시도해주세요.\n${err instanceof Error ? err.message : ''}`);
+      loadData();
+    }
+  };
+
   const startRenameBook = (book: Book) => {
     setEditingBookId(book.id);
     setEditingTitle(book.title);
@@ -392,7 +413,17 @@ export default function LibraryDetailPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap justify-end">
+                  {(!book.cover_image || book.status !== 'ready') && (
+                    <button
+                      onClick={() => reprocessBook(book)}
+                      disabled={book.status === 'processing'}
+                      className="px-3 py-1.5 text-sm border border-amber-200 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="PDF에서 페이지 이미지·표지를 다시 만듭니다"
+                    >
+                      {book.status === 'processing' ? '⏳ 변환 중...' : '🖼️ 표지 만들기'}
+                    </button>
+                  )}
                   <a
                     href={`/book/${book.id}`}
                     target="_blank"
