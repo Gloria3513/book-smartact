@@ -414,16 +414,22 @@ export default function LibraryDetailPage() {
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap justify-end">
-                  {(!book.cover_image || book.status !== 'ready') && (
-                    <button
-                      onClick={() => reprocessBook(book)}
-                      disabled={book.status === 'processing'}
-                      className="px-3 py-1.5 text-sm border border-amber-200 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="PDF에서 페이지 이미지·표지를 다시 만듭니다"
-                    >
-                      {book.status === 'processing' ? '⏳ 변환 중...' : '🖼️ 표지 만들기'}
-                    </button>
-                  )}
+                  <button
+                    onClick={() => reprocessBook(book)}
+                    disabled={book.status === 'processing'}
+                    className={`px-3 py-1.5 text-sm rounded-lg border transition disabled:opacity-50 disabled:cursor-not-allowed ${
+                      !book.cover_image || book.status !== 'ready'
+                        ? 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
+                        : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                    }`}
+                    title="PDF 첫 페이지를 표지로, 모든 페이지를 이미지로 다시 변환합니다"
+                  >
+                    {book.status === 'processing'
+                      ? '⏳ 변환 중...'
+                      : !book.cover_image
+                        ? '🖼️ 표지 만들기'
+                        : '🔄 표지 갱신'}
+                  </button>
                   <a
                     href={`/book/${book.id}`}
                     target="_blank"
