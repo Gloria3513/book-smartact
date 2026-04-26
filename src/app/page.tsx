@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase';
 import BookCard from '@/components/BookCard';
 import LibraryCard from '@/components/LibraryCard';
 import type { Book, Library } from '@/types';
+import { fetchPublicBooks } from '@/lib/public-books';
 
 export default function HomePage() {
   const [loggedIn, setLoggedIn] = useState(false);
@@ -36,14 +37,8 @@ export default function HomePage() {
 
   useEffect(() => {
     const fetchPublic = async () => {
-      const [{ data: books }, { data: libs }] = await Promise.all([
-        supabase
-          .from('book_items')
-          .select('*')
-          .eq('is_public', true)
-          .eq('status', 'ready')
-          .order('created_at', { ascending: false })
-          .limit(10),
+      const [books, { data: libs }] = await Promise.all([
+        fetchPublicBooks(supabase, 10),
         supabase
           .from('book_libraries')
           .select('*, book_items(id, title, cover_image, page_count, sort_order)')
@@ -51,7 +46,7 @@ export default function HomePage() {
           .order('created_at', { ascending: false })
           .limit(6),
       ]);
-      setPublicBooks((books as Book[]) ?? []);
+      setPublicBooks(books);
       setPublicLibraries((libs as Library[]) ?? []);
     };
     fetchPublic();

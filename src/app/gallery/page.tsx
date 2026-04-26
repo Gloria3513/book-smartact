@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase-server';
-import type { Library, Book } from '@/types';
+import type { Library } from '@/types';
 import GalleryView from './GalleryView';
+import { fetchPublicBooks } from '@/lib/public-books';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -8,14 +9,8 @@ export const revalidate = 0;
 export default async function GalleryPage() {
   const supabase = await createServerSupabaseClient();
 
-  const [{ data: publicBooks }, { data: publicLibraries }] = await Promise.all([
-    supabase
-      .from('book_items')
-      .select('*')
-      .eq('is_public', true)
-      .eq('status', 'ready')
-      .order('created_at', { ascending: false })
-      .limit(120),
+  const [publicBooks, { data: publicLibraries }] = await Promise.all([
+    fetchPublicBooks(supabase, 120),
     supabase
       .from('book_libraries')
       .select('*, book_items(id, title, cover_image, page_count, sort_order)')
@@ -67,7 +62,7 @@ export default async function GalleryPage() {
       </header>
 
       <GalleryView
-        books={(publicBooks as Book[]) ?? []}
+        books={publicBooks}
         libraries={(publicLibraries as Library[]) ?? []}
       />
 
