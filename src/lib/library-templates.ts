@@ -2,7 +2,8 @@
 // cover_image 컬럼에 'template:<key>' 형식으로 저장
 // (빈 값이면 첫 책의 cover_image를 자동 사용, http로 시작하면 일반 이미지 URL)
 //
-// 그라디언트는 인라인 CSS로 (Tailwind 동적 클래스 purge 회피)
+// 디자인: 메시 그라디언트(여러 radial-gradient를 합성) 기반.
+// 이모지 없이 색감과 타이포만으로 차분하고 예쁘게.
 
 export const TEMPLATE_PREFIX = 'template:';
 
@@ -12,10 +13,9 @@ export interface LibraryTemplate {
   key: string;
   name: string;
   category: TemplateCategory;
-  background: string;        // CSS background (그라디언트)
+  background: string;     // CSS background — multiple radial-gradient 합성
   textColor: string;
-  mainEmoji: string;          // 가운데 큰 이모지
-  decorEmojis: string[];      // 배경에 흩뿌릴 보조 이모지들 (3~4개 권장)
+  textTone: 'light' | 'dark'; // 텍스트 그림자 강도/방향 결정
 }
 
 export const CATEGORY_LABELS: Record<TemplateCategory, string> = {
@@ -28,115 +28,194 @@ export const CATEGORY_LABELS: Record<TemplateCategory, string> = {
 export const CATEGORY_ORDER: TemplateCategory[] = ['preschool', 'youth', 'adult', 'season'];
 
 export const LIBRARY_TEMPLATES: LibraryTemplate[] = [
-  // ─────────────────────────────────────────── 유아용
+  // ─────────────────────────────────────────── 유아용 (밝고 부드러운 파스텔)
   {
     key: 'cotton', name: '솜사탕', category: 'preschool',
-    background: 'linear-gradient(135deg, #fbcfe8 0%, #ddd6fe 50%, #bae6fd 100%)',
-    textColor: '#831843', mainEmoji: '🦄', decorEmojis: ['⭐', '💫', '🌸', '✨'],
+    background: [
+      'radial-gradient(at 22% 28%, #fbcfe8 0%, transparent 55%)',
+      'radial-gradient(at 78% 22%, #c7d2fe 0%, transparent 55%)',
+      'radial-gradient(at 50% 88%, #bae6fd 0%, transparent 55%)',
+      'linear-gradient(135deg, #fdf2f8 0%, #eff6ff 100%)',
+    ].join(','),
+    textColor: '#831843', textTone: 'dark',
   },
   {
-    key: 'dino', name: '공룡친구', category: 'preschool',
-    background: 'linear-gradient(135deg, #bbf7d0 0%, #99f6e4 50%, #fef9c3 100%)',
-    textColor: '#14532d', mainEmoji: '🦕', decorEmojis: ['🌿', '🥚', '🍃', '🌱'],
+    key: 'meadow', name: '잔디밭', category: 'preschool',
+    background: [
+      'radial-gradient(at 25% 25%, #d9f99d 0%, transparent 55%)',
+      'radial-gradient(at 75% 30%, #fef3c7 0%, transparent 55%)',
+      'radial-gradient(at 50% 90%, #a7f3d0 0%, transparent 55%)',
+      'linear-gradient(135deg, #ecfccb 0%, #f0fdfa 100%)',
+    ].join(','),
+    textColor: '#14532d', textTone: 'dark',
   },
   {
-    key: 'rainbow', name: '무지개', category: 'preschool',
-    background: 'linear-gradient(135deg, #fda4af 0%, #fcd34d 25%, #86efac 50%, #93c5fd 75%, #c4b5fd 100%)',
-    textColor: '#ffffff', mainEmoji: '🌈', decorEmojis: ['☀️', '☁️', '💖', '⭐'],
+    key: 'peach', name: '복숭아', category: 'preschool',
+    background: [
+      'radial-gradient(at 20% 30%, #fed7aa 0%, transparent 55%)',
+      'radial-gradient(at 80% 25%, #fecdd3 0%, transparent 55%)',
+      'radial-gradient(at 60% 90%, #fef3c7 0%, transparent 55%)',
+      'linear-gradient(135deg, #fff7ed 0%, #fff1f2 100%)',
+    ].join(','),
+    textColor: '#9a3412', textTone: 'dark',
   },
   {
-    key: 'animalfriends', name: '동물친구', category: 'preschool',
-    background: 'linear-gradient(135deg, #fed7aa 0%, #fde68a 100%)',
-    textColor: '#7c2d12', mainEmoji: '🐻', decorEmojis: ['🐰', '🦊', '🐼', '🐯'],
-  },
-
-  // ─────────────────────────────────────────── 청소년용
-  {
-    key: 'cyber', name: '사이버', category: 'youth',
-    background: 'linear-gradient(135deg, #4c1d95 0%, #1e3a8a 50%, #0c4a6e 100%)',
-    textColor: '#a5f3fc', mainEmoji: '🎮', decorEmojis: ['⚡', '💎', '🔮', '✨'],
-  },
-  {
-    key: 'sporty', name: '스포티', category: 'youth',
-    background: 'linear-gradient(135deg, #f97316 0%, #ef4444 50%, #db2777 100%)',
-    textColor: '#ffffff', mainEmoji: '⚽', decorEmojis: ['🏆', '🔥', '💪', '🥇'],
-  },
-  {
-    key: 'music', name: '뮤직', category: 'youth',
-    background: 'linear-gradient(135deg, #1e293b 0%, #be185d 60%, #f472b6 100%)',
-    textColor: '#ffffff', mainEmoji: '🎧', decorEmojis: ['🎵', '🎶', '✨', '🎤'],
-  },
-  {
-    key: 'cosmos', name: '우주탐험', category: 'youth',
-    background: 'linear-gradient(135deg, #0c0a2e 0%, #312e81 50%, #6b21a8 100%)',
-    textColor: '#fde047', mainEmoji: '🚀', decorEmojis: ['🌌', '⭐', '💫', '🪐'],
+    key: 'dream', name: '꿈결', category: 'preschool',
+    background: [
+      'radial-gradient(at 25% 30%, #ddd6fe 0%, transparent 55%)',
+      'radial-gradient(at 75% 25%, #fbcfe8 0%, transparent 55%)',
+      'radial-gradient(at 55% 85%, #a5f3fc 0%, transparent 55%)',
+      'linear-gradient(135deg, #f5f3ff 0%, #fdf2f8 100%)',
+    ].join(','),
+    textColor: '#5b21b6', textTone: 'dark',
   },
 
-  // ─────────────────────────────────────────── 성인용
+  // ─────────────────────────────────────────── 청소년용 (비비드, 트렌디)
   {
-    key: 'classic', name: '클래식', category: 'adult',
-    background: 'linear-gradient(135deg, #7f1d1d 0%, #581c1c 60%, #1c1917 100%)',
-    textColor: '#fde68a', mainEmoji: '📚', decorEmojis: ['🍷', '🕯️', '✨', '🪶'],
+    key: 'aurora', name: '오로라', category: 'youth',
+    background: [
+      'radial-gradient(at 20% 25%, #6ee7b7 0%, transparent 55%)',
+      'radial-gradient(at 75% 30%, #60a5fa 0%, transparent 55%)',
+      'radial-gradient(at 55% 90%, #c084fc 0%, transparent 55%)',
+      'linear-gradient(135deg, #064e3b 0%, #1e3a8a 100%)',
+    ].join(','),
+    textColor: '#ffffff', textTone: 'light',
   },
   {
-    key: 'modern', name: '모던', category: 'adult',
-    background: 'linear-gradient(135deg, #f5f5f4 0%, #e7e5e4 50%, #a8a29e 100%)',
-    textColor: '#1c1917', mainEmoji: '✒️', decorEmojis: ['◆', '◇', '▪︎', '⬜'],
+    key: 'sunset', name: '노을', category: 'youth',
+    background: [
+      'radial-gradient(at 20% 30%, #fb923c 0%, transparent 55%)',
+      'radial-gradient(at 80% 25%, #f472b6 0%, transparent 55%)',
+      'radial-gradient(at 55% 90%, #c084fc 0%, transparent 55%)',
+      'linear-gradient(135deg, #fef3c7 0%, #831843 100%)',
+    ].join(','),
+    textColor: '#ffffff', textTone: 'light',
   },
   {
-    key: 'natural', name: '내추럴', category: 'adult',
-    background: 'linear-gradient(135deg, #d6c2a4 0%, #a8a29e 60%, #57534e 100%)',
-    textColor: '#fef3c7', mainEmoji: '🌿', decorEmojis: ['🍂', '🌾', '🪴', '🌱'],
+    key: 'neon', name: '네온', category: 'youth',
+    background: [
+      'radial-gradient(at 25% 25%, #ec4899 0%, transparent 55%)',
+      'radial-gradient(at 75% 30%, #06b6d4 0%, transparent 55%)',
+      'radial-gradient(at 55% 90%, #8b5cf6 0%, transparent 55%)',
+      'linear-gradient(135deg, #1e1b4b 0%, #0c0a2e 100%)',
+    ].join(','),
+    textColor: '#fdf4ff', textTone: 'light',
   },
   {
-    key: 'cafe', name: '북카페', category: 'adult',
-    background: 'linear-gradient(135deg, #fef3c7 0%, #d6a574 50%, #78350f 100%)',
-    textColor: '#fffbeb', mainEmoji: '☕', decorEmojis: ['🥐', '📖', '🌰', '🍪'],
+    key: 'ocean', name: '오션', category: 'youth',
+    background: [
+      'radial-gradient(at 25% 30%, #22d3ee 0%, transparent 55%)',
+      'radial-gradient(at 75% 25%, #38bdf8 0%, transparent 55%)',
+      'radial-gradient(at 50% 88%, #34d399 0%, transparent 55%)',
+      'linear-gradient(135deg, #ecfeff 0%, #1e3a8a 100%)',
+    ].join(','),
+    textColor: '#ffffff', textTone: 'light',
+  },
+
+  // ─────────────────────────────────────────── 성인용 (차분, 세련)
+  {
+    key: 'linen', name: '리넨', category: 'adult',
+    background: [
+      'radial-gradient(at 25% 30%, #f5f5f4 0%, transparent 55%)',
+      'radial-gradient(at 75% 25%, #e7e5e4 0%, transparent 55%)',
+      'radial-gradient(at 55% 90%, #d6d3d1 0%, transparent 55%)',
+      'linear-gradient(135deg, #fafaf9 0%, #e7e5e4 100%)',
+    ].join(','),
+    textColor: '#292524', textTone: 'dark',
+  },
+  {
+    key: 'slate', name: '슬레이트', category: 'adult',
+    background: [
+      'radial-gradient(at 25% 30%, #94a3b8 0%, transparent 55%)',
+      'radial-gradient(at 75% 25%, #64748b 0%, transparent 55%)',
+      'radial-gradient(at 55% 90%, #475569 0%, transparent 55%)',
+      'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+    ].join(','),
+    textColor: '#f8fafc', textTone: 'light',
+  },
+  {
+    key: 'wine', name: '와인', category: 'adult',
+    background: [
+      'radial-gradient(at 25% 30%, #be123c 0%, transparent 55%)',
+      'radial-gradient(at 78% 25%, #7f1d1d 0%, transparent 55%)',
+      'radial-gradient(at 55% 90%, #4c1d24 0%, transparent 55%)',
+      'linear-gradient(135deg, #4c0519 0%, #1c1917 100%)',
+    ].join(','),
+    textColor: '#fef3c7', textTone: 'light',
+  },
+  {
+    key: 'forest', name: '숲그늘', category: 'adult',
+    background: [
+      'radial-gradient(at 25% 30%, #14532d 0%, transparent 55%)',
+      'radial-gradient(at 75% 25%, #365314 0%, transparent 55%)',
+      'radial-gradient(at 55% 90%, #1c1917 0%, transparent 55%)',
+      'linear-gradient(135deg, #052e16 0%, #1c1917 100%)',
+    ].join(','),
+    textColor: '#ecfccb', textTone: 'light',
   },
 
   // ─────────────────────────────────────────── 계절·테마
   {
     key: 'spring', name: '봄', category: 'season',
-    background: 'linear-gradient(135deg, #fce7f3 0%, #d9f99d 100%)',
-    textColor: '#831843', mainEmoji: '🌸', decorEmojis: ['🌷', '🐝', '🦋', '🌼'],
+    background: [
+      'radial-gradient(at 25% 30%, #fce7f3 0%, transparent 55%)',
+      'radial-gradient(at 75% 25%, #d9f99d 0%, transparent 55%)',
+      'radial-gradient(at 55% 90%, #fef9c3 0%, transparent 55%)',
+      'linear-gradient(135deg, #fdf2f8 0%, #f7fee7 100%)',
+    ].join(','),
+    textColor: '#9d174d', textTone: 'dark',
   },
   {
     key: 'summer', name: '여름', category: 'season',
-    background: 'linear-gradient(135deg, #67e8f9 0%, #fde047 100%)',
-    textColor: '#0c4a6e', mainEmoji: '🌊', decorEmojis: ['☀️', '🍉', '🐚', '🏖️'],
+    background: [
+      'radial-gradient(at 25% 30%, #67e8f9 0%, transparent 55%)',
+      'radial-gradient(at 75% 25%, #fde047 0%, transparent 55%)',
+      'radial-gradient(at 55% 90%, #5eead4 0%, transparent 55%)',
+      'linear-gradient(135deg, #ecfeff 0%, #fefce8 100%)',
+    ].join(','),
+    textColor: '#0c4a6e', textTone: 'dark',
   },
   {
     key: 'autumn', name: '가을', category: 'season',
-    background: 'linear-gradient(135deg, #fb923c 0%, #b45309 60%, #7c2d12 100%)',
-    textColor: '#fff7ed', mainEmoji: '🍁', decorEmojis: ['🌰', '🎃', '🍂', '🦔'],
+    background: [
+      'radial-gradient(at 25% 30%, #fb923c 0%, transparent 55%)',
+      'radial-gradient(at 75% 25%, #b45309 0%, transparent 55%)',
+      'radial-gradient(at 55% 90%, #78350f 0%, transparent 55%)',
+      'linear-gradient(135deg, #fef3c7 0%, #431407 100%)',
+    ].join(','),
+    textColor: '#fff7ed', textTone: 'light',
   },
   {
     key: 'winter', name: '겨울', category: 'season',
-    background: 'linear-gradient(135deg, #e0e7ff 0%, #a5b4fc 60%, #1e1b4b 100%)',
-    textColor: '#ffffff', mainEmoji: '❄️', decorEmojis: ['⛄', '🎄', '✨', '🦌'],
+    background: [
+      'radial-gradient(at 25% 30%, #e0e7ff 0%, transparent 55%)',
+      'radial-gradient(at 75% 25%, #bae6fd 0%, transparent 55%)',
+      'radial-gradient(at 55% 90%, #ddd6fe 0%, transparent 55%)',
+      'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)',
+    ].join(','),
+    textColor: '#1e3a8a', textTone: 'dark',
   },
   {
-    key: 'storybook', name: '동화', category: 'season',
-    background: 'linear-gradient(135deg, #fef3c7 0%, #ffe4e6 50%, #ddd6fe 100%)',
-    textColor: '#7c2d12', mainEmoji: '📖', decorEmojis: ['🏰', '🧚', '🌟', '🦋'],
+    key: 'dawn', name: '새벽', category: 'season',
+    background: [
+      'radial-gradient(at 25% 30%, #c4b5fd 0%, transparent 55%)',
+      'radial-gradient(at 75% 25%, #f472b6 0%, transparent 55%)',
+      'radial-gradient(at 55% 90%, #38bdf8 0%, transparent 55%)',
+      'linear-gradient(135deg, #312e81 0%, #831843 100%)',
+    ].join(','),
+    textColor: '#ffffff', textTone: 'light',
   },
   {
-    key: 'night', name: '별밤', category: 'season',
-    background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #0f172a 100%)',
-    textColor: '#fde68a', mainEmoji: '🌙', decorEmojis: ['⭐', '✨', '💫', '🌟'],
+    key: 'library', name: '서재', category: 'season',
+    background: [
+      'radial-gradient(at 25% 30%, #d6c2a4 0%, transparent 55%)',
+      'radial-gradient(at 75% 25%, #b08968 0%, transparent 55%)',
+      'radial-gradient(at 55% 90%, #78350f 0%, transparent 55%)',
+      'linear-gradient(135deg, #fef3c7 0%, #44403c 100%)',
+    ].join(','),
+    textColor: '#fff7ed', textTone: 'light',
   },
 ];
-
-// 카드 위에 데코 이모지를 배치할 위치 슬롯
-// sizeEm: 메인 이모지 폰트 크기 대비 비율 (1em = 메인 이모지 사이즈)
-export const DECOR_SLOTS = [
-  { top: '8%',     left: '8%',   rotate: -14, sizeEm: 0.42, opacity: 0.55 },
-  { top: '12%',    right: '10%', rotate: 18,  sizeEm: 0.48, opacity: 0.5  },
-  { bottom: '14%', left: '12%',  rotate: 10,  sizeEm: 0.38, opacity: 0.55 },
-  { bottom: '18%', right: '8%',  rotate: -18, sizeEm: 0.45, opacity: 0.5  },
-  { top: '50%',    left: '4%',   rotate: 24,  sizeEm: 0.32, opacity: 0.4  },
-  { top: '42%',    right: '5%',  rotate: -22, sizeEm: 0.36, opacity: 0.45 },
-] as const;
 
 export function isTemplateValue(value: string | null | undefined): value is string {
   return !!value && value.startsWith(TEMPLATE_PREFIX);

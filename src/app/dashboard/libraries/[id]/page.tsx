@@ -479,13 +479,10 @@ export default function LibraryDetailPage() {
                         >
                           <TemplateCover
                             template={tpl}
+                            title={tpl.name}
                             className="aspect-[3/2]"
                             size="option"
-                            showMeta={false}
                           />
-                          <div className="absolute bottom-0 left-0 right-0 bg-white/85 backdrop-blur-sm py-1 text-center">
-                            <span className="text-xs font-semibold text-gray-800">{tpl.name}</span>
-                          </div>
                         </button>
                       );
                     })}

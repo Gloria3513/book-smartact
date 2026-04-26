@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import type { Library } from '@/types';
-import { findTemplate, isTemplateValue, templateKey, DECOR_SLOTS, type LibraryTemplate } from '@/lib/library-templates';
+import { findTemplate, isTemplateValue, templateKey, type LibraryTemplate } from '@/lib/library-templates';
 
 interface LibraryCardProps {
   library: Library;
@@ -124,7 +124,7 @@ export function LibraryCover({
   );
 }
 
-// 템플릿 표지: 데코 이모지를 흩뿌려 풍성하게
+// 템플릿 표지: 메시 그라디언트 + 타이포 위주의 깔끔한 디자인
 // size: 'thumb'(카드 썸네일) | 'preview'(상세 미리보기) | 'option'(모달 선택지)
 export function TemplateCover({
   template,
@@ -143,47 +143,59 @@ export function TemplateCover({
   showMeta?: boolean;
   size?: 'thumb' | 'preview' | 'option';
 }) {
-  const baseFontPx = size === 'preview' ? 96 : size === 'option' ? 44 : 64;
-  const decors = template.decorEmojis.slice(0, DECOR_SLOTS.length);
+  // 사이즈별 타이포 (px)
+  const titlePx   = size === 'preview' ? 28 : size === 'option' ? 13 : 18;
+  const countPx   = size === 'preview' ? 14 : size === 'option' ? 10 : 11;
+
+  const shadow = template.textTone === 'light'
+    ? '0 1px 6px rgba(0,0,0,0.25)'
+    : '0 1px 2px rgba(255,255,255,0.4)';
+
+  // 어두운 배경엔 살짝 밝은 하이라이트, 밝은 배경엔 살짝 어두운 비넷
+  const overlay = template.textTone === 'light'
+    ? 'radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.08) 0%, transparent 60%)'
+    : 'radial-gradient(ellipse at 70% 80%, rgba(0,0,0,0.04) 0%, transparent 60%)';
 
   return (
     <div
       className={`relative overflow-hidden ${className}`}
-      style={{ background: template.background, color: template.textColor, fontSize: `${baseFontPx}px` }}
+      style={{ background: template.background, color: template.textColor }}
     >
-      {decors.map((emoji, i) => {
-        const slot = DECOR_SLOTS[i];
-        const style: React.CSSProperties = {
-          position: 'absolute',
-          fontSize: `${slot.sizeEm}em`,
-          opacity: slot.opacity,
-          transform: `rotate(${slot.rotate}deg)`,
-          pointerEvents: 'none',
-          lineHeight: 1,
-          ...('top' in slot && slot.top !== undefined ? { top: slot.top } : {}),
-          ...('bottom' in slot && slot.bottom !== undefined ? { bottom: slot.bottom } : {}),
-          ...('left' in slot && slot.left !== undefined ? { left: slot.left } : {}),
-          ...('right' in slot && slot.right !== undefined ? { right: slot.right } : {}),
-        };
-        return <span key={i} style={style} aria-hidden>{emoji}</span>;
-      })}
+      {/* 미세한 빛/그림자 오버레이 */}
+      <div className="absolute inset-0 pointer-events-none" style={{ background: overlay }} />
 
-      <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-3">
-        <span style={{ fontSize: '1em', lineHeight: 1 }} className="drop-shadow-sm">{template.mainEmoji}</span>
-        {showMeta && title && (
-          <span style={{ fontSize: '0.22em', lineHeight: 1.2 }} className="mt-2 font-semibold drop-shadow-sm line-clamp-2">{title}</span>
-        )}
-        {showMeta && typeof bookCount === 'number' && (
-          <span style={{ fontSize: '0.18em' }} className="mt-1 opacity-90">{bookCount}권</span>
-        )}
-      </div>
+      {/* 메인 콘텐츠 */}
+      {showMeta && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-5">
+          {title && (
+            <h3
+              style={{
+                fontSize: `${titlePx}px`,
+                lineHeight: 1.25,
+                letterSpacing: '-0.01em',
+                textShadow: shadow,
+              }}
+              className="font-bold line-clamp-3"
+            >
+              {title}
+            </h3>
+          )}
+          {typeof bookCount === 'number' && (
+            <span
+              style={{ fontSize: `${countPx}px`, textShadow: shadow }}
+              className="mt-2 opacity-80 tracking-wide"
+            >
+              {bookCount}권의 책
+            </span>
+          )}
+        </div>
+      )}
 
       {typeof isPublic === 'boolean' && (
         <span
           className={`absolute top-2 right-2 text-xs px-2 py-1 rounded ${
             isPublic ? 'bg-green-600 text-white' : 'bg-gray-800 text-white'
           }`}
-          style={{ fontSize: '11px' }}
         >
           {isPublic ? '공개' : '비공개'}
         </span>
