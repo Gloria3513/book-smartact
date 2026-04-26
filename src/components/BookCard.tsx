@@ -7,37 +7,112 @@ interface BookCardProps {
   book: Book;
 }
 
+// 제목으로부터 일관된 색감 톤을 뽑아 책마다 살짝 다른 표지 분위기를 줌
+const SPINE_TONES = [
+  { bg: 'linear-gradient(135deg, #fde68a 0%, #fb923c 100%)', text: '#7c2d12', spine: '#92400e' },
+  { bg: 'linear-gradient(135deg, #bbf7d0 0%, #14b8a6 100%)', text: '#064e3b', spine: '#115e59' },
+  { bg: 'linear-gradient(135deg, #ddd6fe 0%, #8b5cf6 100%)', text: '#3b0764', spine: '#5b21b6' },
+  { bg: 'linear-gradient(135deg, #fbcfe8 0%, #ec4899 100%)', text: '#831843', spine: '#9f1239' },
+  { bg: 'linear-gradient(135deg, #bae6fd 0%, #3b82f6 100%)', text: '#1e3a8a', spine: '#1d4ed8' },
+  { bg: 'linear-gradient(135deg, #fed7aa 0%, #ef4444 100%)', text: '#7f1d1d', spine: '#991b1b' },
+  { bg: 'linear-gradient(135deg, #d9f99d 0%, #65a30d 100%)', text: '#365314', spine: '#3f6212' },
+  { bg: 'linear-gradient(135deg, #fef3c7 0%, #d97706 100%)', text: '#78350f', spine: '#92400e' },
+];
+
+function pickTone(seed: string) {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
+  return SPINE_TONES[Math.abs(h) % SPINE_TONES.length];
+}
+
 export default function BookCard({ book }: BookCardProps) {
+  const tone = pickTone(book.id || book.title);
+
   return (
     <Link
       href={`/book/${book.id}`}
-      className="group block bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-200 overflow-hidden"
+      className="group block transition-transform duration-300 hover:-translate-y-1.5"
     >
-      <div className="aspect-[3/4] bg-gradient-to-br from-amber-50 to-orange-100 flex items-center justify-center relative">
-        {book.cover_image ? (
-          <img
-            src={book.cover_image}
-            alt={book.title}
-            className="w-full h-full object-cover"
+      <div className="relative">
+        {/* 책 옆면(spine) — 카드 좌측에 살짝 노출되는 두께감 */}
+        <div
+          aria-hidden
+          className="absolute -left-1 top-1 bottom-1 w-1.5 rounded-l-sm opacity-80"
+          style={{ background: tone.spine }}
+        />
+
+        <div
+          className="relative aspect-[3/4] rounded-sm overflow-hidden shadow-md group-hover:shadow-xl transition-shadow"
+          style={{
+            // 책 표지 입체감을 위한 미세한 안쪽 그림자
+            boxShadow:
+              '0 1px 2px rgba(0,0,0,0.08), 0 8px 18px -8px rgba(0,0,0,0.25), inset 6px 0 12px -6px rgba(0,0,0,0.18)',
+          }}
+        >
+          {book.cover_image ? (
+            <img
+              src={book.cover_image}
+              alt={book.title}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            // 표지 이미지가 아직 없을 때 — 책 제목을 표지 안에 크게 (진짜 책처럼)
+            <div
+              className="w-full h-full flex flex-col justify-between p-4"
+              style={{ background: tone.bg, color: tone.text }}
+            >
+              {/* 상단 가는 띠 */}
+              <div className="flex items-center gap-2 opacity-70">
+                <div className="h-px flex-1" style={{ background: tone.text }} />
+                <span className="text-[10px] tracking-widest font-semibold">BOOK</span>
+                <div className="h-px flex-1" style={{ background: tone.text }} />
+              </div>
+
+              {/* 가운데: 제목 */}
+              <div className="flex-1 flex items-center justify-center text-center">
+                <h3
+                  className="font-bold leading-tight line-clamp-4"
+                  style={{
+                    fontSize: '14px',
+                    letterSpacing: '-0.01em',
+                    textShadow: '0 1px 2px rgba(255,255,255,0.25)',
+                  }}
+                >
+                  {book.title}
+                </h3>
+              </div>
+
+              {/* 하단 가는 띠 + 페이지 수 */}
+              <div className="flex items-center gap-2 opacity-70">
+                <div className="h-px flex-1" style={{ background: tone.text }} />
+                {book.page_count && (
+                  <span className="text-[10px] font-medium">{book.page_count}p</span>
+                )}
+                <div className="h-px flex-1" style={{ background: tone.text }} />
+              </div>
+            </div>
+          )}
+
+          {/* 페이지 수 배지 (cover_image가 있을 때만) */}
+          {book.cover_image && book.page_count && (
+            <span className="absolute bottom-2 right-2 bg-black/55 text-white text-[10px] font-medium px-2 py-0.5 rounded-full">
+              {book.page_count}p
+            </span>
+          )}
+
+          {/* 책 표지 좌측 안쪽의 미세한 결(그림자 라인) */}
+          <div
+            aria-hidden
+            className="absolute left-0 top-0 bottom-0 w-2 pointer-events-none"
+            style={{ background: 'linear-gradient(90deg, rgba(0,0,0,0.18), transparent)' }}
           />
-        ) : (
-          <div className="flex flex-col items-center gap-2 text-orange-400">
-            <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-            </svg>
-          </div>
-        )}
-        {book.page_count && (
-          <span className="absolute bottom-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded">
-            {book.page_count}p
-          </span>
-        )}
+        </div>
       </div>
-      <div className="p-3">
-        <h3 className="font-medium text-gray-800 group-hover:text-teal-600 transition truncate text-sm">
-          {book.title}
-        </h3>
-      </div>
+
+      {/* 카드 아래 제목 — 책에 가린 것 같은 작은 폰트로 */}
+      <h4 className="mt-3 text-sm font-medium text-stone-700 group-hover:text-teal-700 transition-colors truncate">
+        {book.title}
+      </h4>
     </Link>
   );
 }

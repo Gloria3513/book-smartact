@@ -106,14 +106,33 @@ export function LibraryCover({
     );
   }
 
-  // 4) 기본 그라디언트
+  // 4) 기본 fallback — 책 등이 꽂힌 책장 같은 분위기
   return (
-    <div className={`bg-gradient-to-br from-blue-50 to-teal-100 flex items-center justify-center relative ${className}`}>
-      <div className="flex flex-col items-center gap-2 text-teal-400">
-        <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-        </svg>
-        <span className="text-sm font-medium">{bookCount}권</span>
+    <div
+      className={`relative overflow-hidden flex flex-col items-center justify-center ${className}`}
+      style={{
+        background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 50%, #fbbf24 100%)',
+      }}
+    >
+      {/* 책등이 꽂혀있는 듯한 가로 줄무늬 */}
+      <div className="absolute inset-x-0 bottom-0 h-1/2 flex items-end gap-1 px-3 pb-1 opacity-70">
+        {['#7c2d12','#b45309','#a16207','#92400e','#78350f','#7c2d12','#854d0e'].map((c, i) => (
+          <div
+            key={i}
+            className="flex-1 rounded-t-sm"
+            style={{
+              background: c,
+              height: `${50 + ((i * 37) % 40)}%`,
+              boxShadow: 'inset 1px 0 1px rgba(255,255,255,0.15)',
+            }}
+          />
+        ))}
+      </div>
+      <div className="relative z-10 flex flex-col items-center gap-1 mb-12 px-3 text-center">
+        <h3 className="text-base font-bold text-stone-800 line-clamp-2 leading-tight" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.5)' }}>
+          {library.title}
+        </h3>
+        <span className="text-xs font-medium text-stone-700">{bookCount}권의 책</span>
       </div>
       {!library.is_public ? (
         <span className="absolute top-2 right-2 bg-gray-800 text-white text-xs px-2 py-1 rounded">비공개</span>
