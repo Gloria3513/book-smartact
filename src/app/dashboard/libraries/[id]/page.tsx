@@ -14,6 +14,10 @@ export default function LibraryDetailPage() {
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [editingBookId, setEditingBookId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
+  const [editingLibraryName, setEditingLibraryName] = useState(false);
+  const [libraryNameDraft, setLibraryNameDraft] = useState('');
 
   const supabase = createClient();
 
@@ -118,6 +122,65 @@ export default function LibraryDetailPage() {
     loadData();
   };
 
+  const startRenameBook = (book: Book) => {
+    setEditingBookId(book.id);
+    setEditingTitle(book.title);
+  };
+
+  const cancelRenameBook = () => {
+    setEditingBookId(null);
+    setEditingTitle('');
+  };
+
+  const saveRenameBook = async (book: Book) => {
+    const next = editingTitle.trim();
+    if (!next || next === book.title) {
+      cancelRenameBook();
+      return;
+    }
+    setBooks(prev => prev.map(b => (b.id === book.id ? { ...b, title: next } : b)));
+    cancelRenameBook();
+    const { error } = await supabase
+      .from('book_items')
+      .update({ title: next })
+      .eq('id', book.id);
+    if (error) {
+      setBooks(prev => prev.map(b => (b.id === book.id ? { ...b, title: book.title } : b)));
+      alert('이름 변경에 실패했습니다.');
+    }
+  };
+
+  const startRenameLibrary = () => {
+    if (!library) return;
+    setLibraryNameDraft(library.title);
+    setEditingLibraryName(true);
+  };
+
+  const cancelRenameLibrary = () => {
+    setEditingLibraryName(false);
+    setLibraryNameDraft('');
+  };
+
+  const saveRenameLibrary = async () => {
+    if (!library) return;
+    const next = libraryNameDraft.trim();
+    if (!next || next === library.title) {
+      cancelRenameLibrary();
+      return;
+    }
+    const prev = library.title;
+    setLibrary({ ...library, title: next });
+    cancelRenameLibrary();
+    const { error } = await supabase
+      .from('book_libraries')
+      .update({ title: next })
+      .eq('id', library.id);
+    if (error) {
+      setLibrary({ ...library, title: prev });
+      alert('도서관 이름 변경에 실패했습니다.');
+    }
+  };
+
   const copyShareLink = () => {
     if (!library) return;
     const link = `${siteUrl}/library/${library.share_code}`;
@@ -157,8 +220,29 @@ export default function LibraryDetailPage() {
             <span>/</span>
             <span className="text-gray-800">{library.title}</span>
           </div>
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold text-gray-900">{library.title}</h1>
+          <div className="flex items-center justify-between gap-3">
+            {editingLibraryName ? (
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <input
+                  type="text"
+                  value={libraryNameDraft}
+                  onChange={(e) => setLibraryNameDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') saveRenameLibrary();
+                    if (e.key === 'Escape') cancelRenameLibrary();
+                  }}
+                  autoFocus
+                  className="flex-1 max-w-md px-3 py-1.5 border border-teal-300 rounded-lg text-lg font-bold focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                />
+                <button onClick={saveRenameLibrary} className="px-3 py-1.5 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700">저장</button>
+                <button onClick={cancelRenameLibrary} className="px-3 py-1.5 text-sm border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50">취소</button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 min-w-0">
+                <h1 className="text-xl font-bold text-gray-900 truncate">{library.title}</h1>
+                <button onClick={startRenameLibrary} className="text-gray-400 hover:text-teal-600 transition" title="도서관 이름 변경">✏️</button>
+              </div>
+            )}
             <div className="flex gap-2">
               <button
                 onClick={copyShareLink}
@@ -221,8 +305,35 @@ export default function LibraryDetailPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                     </svg>
                   </div>
-                  <div>
-                    <h3 className="font-medium text-gray-800">{book.title}</h3>
+                  <div className="min-w-0">
+                    {editingBookId === book.id ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={editingTitle}
+                          onChange={(e) => setEditingTitle(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') saveRenameBook(book);
+                            if (e.key === 'Escape') cancelRenameBook();
+                          }}
+                          autoFocus
+                          className="px-2 py-1 border border-teal-300 rounded text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                        />
+                        <button onClick={() => saveRenameBook(book)} className="px-2 py-1 text-xs bg-teal-600 text-white rounded hover:bg-teal-700">저장</button>
+                        <button onClick={cancelRenameBook} className="px-2 py-1 text-xs border border-gray-300 text-gray-600 rounded hover:bg-gray-50">취소</button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5">
+                        <h3 className="font-medium text-gray-800 truncate">{book.title}</h3>
+                        <button
+                          onClick={() => startRenameBook(book)}
+                          className="text-gray-400 hover:text-teal-600 transition text-sm"
+                          title="이름 변경"
+                        >
+                          ✏️
+                        </button>
+                      </div>
+                    )}
                     {book.page_count && (
                       <p className="text-sm text-gray-500">{book.page_count}페이지</p>
                     )}

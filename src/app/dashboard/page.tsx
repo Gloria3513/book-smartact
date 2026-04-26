@@ -20,6 +20,8 @@ export default function DashboardPage() {
   const [selectedBooks, setSelectedBooks] = useState<string[]>([]);
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
+  const [editingBookId, setEditingBookId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
 
   const supabase = createClient();
   const MAX_BOOKS = 10;
@@ -216,6 +218,34 @@ export default function DashboardPage() {
     setShowGroupModal(false);
   };
 
+  const startRename = (book: Book) => {
+    setEditingBookId(book.id);
+    setEditingTitle(book.title);
+  };
+
+  const cancelRename = () => {
+    setEditingBookId(null);
+    setEditingTitle('');
+  };
+
+  const saveRename = async (book: Book) => {
+    const next = editingTitle.trim();
+    if (!next || next === book.title) {
+      cancelRename();
+      return;
+    }
+    setBooks(prev => prev.map(b => (b.id === book.id ? { ...b, title: next } : b)));
+    cancelRename();
+    const { error } = await supabase
+      .from('book_items')
+      .update({ title: next })
+      .eq('id', book.id);
+    if (error) {
+      setBooks(prev => prev.map(b => (b.id === book.id ? { ...b, title: book.title } : b)));
+      alert('이름 변경에 실패했습니다.');
+    }
+  };
+
   const toggleBookPublic = async (book: Book) => {
     const next = !book.is_public;
     setBooks(prev => prev.map(b => (b.id === book.id ? { ...b, is_public: next } : b)));
@@ -394,8 +424,47 @@ export default function DashboardPage() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                           </svg>
                         </div>
-                        <div>
-                          <h3 className="font-medium text-gray-800">{book.title}</h3>
+                        <div className="min-w-0">
+                          {editingBookId === book.id ? (
+                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="text"
+                                value={editingTitle}
+                                onChange={(e) => setEditingTitle(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') saveRename(book);
+                                  if (e.key === 'Escape') cancelRename();
+                                }}
+                                autoFocus
+                                className="px-2 py-1 border border-teal-300 rounded text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                              />
+                              <button
+                                onClick={() => saveRename(book)}
+                                className="px-2 py-1 text-xs bg-teal-600 text-white rounded hover:bg-teal-700"
+                              >
+                                저장
+                              </button>
+                              <button
+                                onClick={cancelRename}
+                                className="px-2 py-1 text-xs border border-gray-300 text-gray-600 rounded hover:bg-gray-50"
+                              >
+                                취소
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5">
+                              <h3 className="font-medium text-gray-800 truncate">{book.title}</h3>
+                              {!selectionMode && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); startRename(book); }}
+                                  className="text-gray-400 hover:text-teal-600 transition text-sm"
+                                  title="이름 변경"
+                                >
+                                  ✏️
+                                </button>
+                              )}
+                            </div>
+                          )}
                           <div className="flex items-center gap-2 mt-1 flex-wrap">
                             {book.library_id ? (
                               <span className="text-xs bg-teal-50 text-teal-600 px-2 py-0.5 rounded">
