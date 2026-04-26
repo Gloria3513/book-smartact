@@ -68,12 +68,25 @@ export default function FlipbookViewer({ pdfUrl, title, embedded = false, r2Base
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 500, height: 706 });
+  const [isPortrait, setIsPortrait] = useState(false);
 
   const updateDimensions = useCallback(() => {
-    if (containerRef.current) {
-      const containerWidth = containerRef.current.offsetWidth || window.innerWidth;
-      const containerHeight = containerRef.current.offsetHeight || window.innerHeight - 120;
-      // 양면 펼쳐서 가로/세로 모두 여유 있게 (로고+프로그레스바 고려)
+    if (!containerRef.current) return;
+    const containerWidth = containerRef.current.offsetWidth || window.innerWidth;
+    const containerHeight = containerRef.current.offsetHeight || window.innerHeight - 120;
+    // 768px 미만 → 모바일: 단면(portrait) 모드로 책 한 장만 표시
+    const mobile = (typeof window !== 'undefined' ? window.innerWidth : containerWidth) < 768;
+    setIsPortrait(mobile);
+
+    if (mobile) {
+      // 단면: 페이지 한 장이 화면 폭 거의 전체 (좌우 패딩 24)
+      const maxPageWidth = containerWidth - 24;
+      const maxPageHeight = containerHeight - 40;
+      const pageWidth = Math.floor(Math.min(maxPageWidth, maxPageHeight / 1.414));
+      const pageHeight = Math.floor(pageWidth * 1.414);
+      setDimensions({ width: Math.max(pageWidth, 200), height: Math.max(pageHeight, 280) });
+    } else {
+      // 양면 펼쳐서 가로/세로 모두 여유 있게
       const maxPageWidth = (containerWidth - 160) / 2;
       const maxPageHeight = containerHeight - 60;
       const pageWidth = Math.floor(Math.min(maxPageWidth, maxPageHeight / 1.414));
@@ -231,7 +244,7 @@ export default function FlipbookViewer({ pdfUrl, title, embedded = false, r2Base
       {/* 메인 뷰어 */}
       <div
         ref={containerRef}
-        className="flex-1 flex items-center justify-center relative px-16 py-2 overflow-hidden"
+        className="flex-1 flex items-center justify-center relative px-3 sm:px-16 py-2 overflow-hidden"
       >
         {/* 스마택트 로고 (좌측 하단) */}
         <a
@@ -248,7 +261,7 @@ export default function FlipbookViewer({ pdfUrl, title, embedded = false, r2Base
         <button
           onClick={goToPrev}
           disabled={currentPage === 0}
-          className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-11 h-11 bg-white rounded-full shadow-lg flex items-center justify-center text-gray-500 hover:bg-teal-500 hover:text-white hover:scale-110 disabled:opacity-20 disabled:hover:bg-white disabled:hover:text-gray-500 disabled:hover:scale-100 transition-all text-xl"
+          className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 sm:w-11 sm:h-11 bg-white/90 sm:bg-white rounded-full shadow-lg flex items-center justify-center text-gray-500 hover:bg-teal-500 hover:text-white hover:scale-110 disabled:opacity-20 disabled:hover:bg-white disabled:hover:text-gray-500 disabled:hover:scale-100 transition-all text-xl"
         >
           ◂
         </button>
@@ -257,20 +270,20 @@ export default function FlipbookViewer({ pdfUrl, title, embedded = false, r2Base
         <div className="shadow-2xl">
           {/* @ts-expect-error - react-pageflip 타입 이슈 */}
           <HTMLFlipBook
-            key={`${dimensions.width}x${dimensions.height}`}
+            key={`${dimensions.width}x${dimensions.height}-${isPortrait ? 'p' : 'l'}`}
             ref={flipBookRef}
             width={dimensions.width}
             height={dimensions.height}
             size="fixed"
-            minWidth={280}
+            minWidth={isPortrait ? 200 : 280}
             maxWidth={1400}
-            minHeight={400}
+            minHeight={isPortrait ? 280 : 400}
             maxHeight={2000}
             showCover={true}
             maxShadowOpacity={0.5}
             drawShadow={true}
             flippingTime={800}
-            usePortrait={false}
+            usePortrait={isPortrait}
             mobileScrollSupport={true}
             showPageCorners={true}
             onFlip={onFlip}
@@ -288,7 +301,7 @@ export default function FlipbookViewer({ pdfUrl, title, embedded = false, r2Base
         <button
           onClick={goToNext}
           disabled={currentPage >= totalPages - 1}
-          className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-11 h-11 bg-white rounded-full shadow-lg flex items-center justify-center text-gray-500 hover:bg-teal-500 hover:text-white hover:scale-110 disabled:opacity-20 disabled:hover:bg-white disabled:hover:text-gray-500 disabled:hover:scale-100 transition-all text-xl"
+          className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 sm:w-11 sm:h-11 bg-white/90 sm:bg-white rounded-full shadow-lg flex items-center justify-center text-gray-500 hover:bg-teal-500 hover:text-white hover:scale-110 disabled:opacity-20 disabled:hover:bg-white disabled:hover:text-gray-500 disabled:hover:scale-100 transition-all text-xl"
         >
           ▸
         </button>
