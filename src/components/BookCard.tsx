@@ -5,6 +5,9 @@ import type { Book } from '@/types';
 
 interface BookCardProps {
   book: Book;
+  // 책 상세에서 돌아갈 곳 (예: 도서관 공유 페이지)
+  backHref?: string;
+  backLabel?: string;
 }
 
 // 제목으로부터 일관된 색감 톤을 뽑아 책마다 살짝 다른 표지 분위기를 줌
@@ -25,12 +28,16 @@ function pickTone(seed: string) {
   return SPINE_TONES[Math.abs(h) % SPINE_TONES.length];
 }
 
-export default function BookCard({ book }: BookCardProps) {
+export default function BookCard({ book, backHref, backLabel }: BookCardProps) {
   const tone = pickTone(book.id || book.title);
+
+  const href = backHref
+    ? `/book/${book.id}?from=${encodeURIComponent(backHref)}${backLabel ? `&fromLabel=${encodeURIComponent(backLabel)}` : ''}`
+    : `/book/${book.id}`;
 
   return (
     <Link
-      href={`/book/${book.id}`}
+      href={href}
       className="group block transition-transform duration-300 hover:-translate-y-1.5"
     >
       <div className="relative">

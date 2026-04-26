@@ -5,10 +5,20 @@ import type { Book } from '@/types';
 
 interface PageProps {
   params: Promise<{ bookId: string }>;
+  searchParams: Promise<{ from?: string; fromLabel?: string }>;
 }
 
-export default async function BookPage({ params }: PageProps) {
+// 외부 URL로의 open redirect를 막기 위해 내부 절대 경로만 허용
+function safeBackHref(input: string | undefined): string | null {
+  if (!input) return null;
+  if (!input.startsWith('/')) return null;
+  if (input.startsWith('//')) return null;
+  return input;
+}
+
+export default async function BookPage({ params, searchParams }: PageProps) {
   const { bookId } = await params;
+  const { from, fromLabel } = await searchParams;
   const supabase = await createServerSupabaseClient();
 
   const { data: book } = await supabase
@@ -21,8 +31,12 @@ export default async function BookPage({ params }: PageProps) {
     notFound();
   }
 
+  const backHref = safeBackHref(from);
+  const backLabel = fromLabel?.slice(0, 60) || '돌아가기';
+
   return (
     <div className="min-h-screen bg-gray-100">
+      {backHref && <BackBar href={backHref} label={backLabel} />}
       <FlipbookViewer
         pdfUrl={book.pdf_url}
         title={book.title}
@@ -30,5 +44,20 @@ export default async function BookPage({ params }: PageProps) {
         pageCount={book.page_count}
       />
     </div>
+  );
+}
+
+function BackBar({ href, label }: { href: string; label: string }) {
+  return (
+    <a
+      href={href}
+      className="fixed top-3 left-3 z-50 inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full text-sm text-gray-700 hover:bg-white hover:text-teal-700 hover:border-teal-300 shadow-sm transition max-w-[60vw]"
+      title={label}
+    >
+      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+      </svg>
+      <span className="truncate">{label}</span>
+    </a>
   );
 }

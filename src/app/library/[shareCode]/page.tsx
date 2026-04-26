@@ -23,6 +23,8 @@ export default async function LibraryPage({ params }: PageProps) {
   }
 
   const books = (library.book_items ?? []).sort((a, b) => a.sort_order - b.sort_order);
+  const backHref = `/library/${shareCode}`;
+  const backLabel = library.title;
 
   return (
     <div
@@ -78,7 +80,7 @@ export default async function LibraryPage({ params }: PageProps) {
         {books.length === 0 ? (
           <EmptyShelf />
         ) : (
-          <Shelf books={books} />
+          <Shelf books={books} backHref={backHref} backLabel={backLabel} />
         )}
 
         {/* 푸터 */}
@@ -98,13 +100,13 @@ export default async function LibraryPage({ params }: PageProps) {
   );
 }
 
-function Shelf({ books }: { books: Book[] }) {
+function Shelf({ books, backHref, backLabel }: { books: Book[]; backHref: string; backLabel: string }) {
   return (
     <div className="space-y-12">
       {/* 책 그리드 */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-6 gap-y-10 px-2">
         {books.map((book) => (
-          <BookCard key={book.id} book={book} />
+          <BookCard key={book.id} book={book} backHref={backHref} backLabel={backLabel} />
         ))}
       </div>
 
