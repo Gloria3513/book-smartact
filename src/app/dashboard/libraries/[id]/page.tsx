@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import type { Library, Book, User } from '@/types';
+import { LibraryCover } from '@/components/LibraryCard';
+import { LIBRARY_TEMPLATES, templateValue, isTemplateValue, templateKey } from '@/lib/library-templates';
 
 export default function LibraryDetailPage() {
   const params = useParams();
@@ -18,6 +20,7 @@ export default function LibraryDetailPage() {
   const [editingTitle, setEditingTitle] = useState('');
   const [editingLibraryName, setEditingLibraryName] = useState(false);
   const [libraryNameDraft, setLibraryNameDraft] = useState('');
+  const [showCoverModal, setShowCoverModal] = useState(false);
 
   const supabase = createClient();
 
@@ -150,6 +153,21 @@ export default function LibraryDetailPage() {
     }
   };
 
+  const updateLibraryCover = async (value: string | null) => {
+    if (!library) return;
+    const prevCover = library.cover_image;
+    setLibrary({ ...library, cover_image: value });
+    setShowCoverModal(false);
+    const { error } = await supabase
+      .from('book_libraries')
+      .update({ cover_image: value })
+      .eq('id', library.id);
+    if (error) {
+      setLibrary({ ...library, cover_image: prevCover });
+      alert('표지 변경에 실패했습니다.');
+    }
+  };
+
   const startRenameLibrary = () => {
     if (!library) return;
     setLibraryNameDraft(library.title);
@@ -266,6 +284,32 @@ export default function LibraryDetailPage() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-8">
+        {/* 표지 미리보기 + 변경 */}
+        <div className="mb-6 flex flex-col sm:flex-row gap-4 items-start">
+          <div className="w-full sm:w-72 flex-shrink-0 rounded-xl overflow-hidden shadow-sm border border-gray-200">
+            <LibraryCover
+              library={{ ...library, book_items: books }}
+              className="aspect-[3/2]"
+            />
+          </div>
+          <div className="flex-1 space-y-2">
+            <h2 className="text-sm font-semibold text-gray-700">도서관 표지</h2>
+            <p className="text-sm text-gray-500">
+              {!library.cover_image
+                ? '첫 책의 표지를 자동으로 사용 중이에요. 템플릿을 골라 분위기를 바꿀 수 있어요.'
+                : isTemplateValue(library.cover_image)
+                ? '템플릿 표지를 사용 중이에요.'
+                : '직접 설정한 이미지를 사용 중이에요.'}
+            </p>
+            <button
+              onClick={() => setShowCoverModal(true)}
+              className="px-4 py-2 border border-teal-200 text-teal-600 rounded-lg hover:bg-teal-50 transition text-sm"
+            >
+              표지 변경
+            </button>
+          </div>
+        </div>
+
         {/* 공유 정보 */}
         <div className="bg-teal-50 border border-teal-100 rounded-xl p-4 mb-8">
           <p className="text-sm text-teal-800 font-medium mb-2">공유 링크</p>
@@ -367,6 +411,64 @@ export default function LibraryDetailPage() {
           </div>
         )}
       </main>
+
+      {/* 표지 선택 모달 */}
+      {showCoverModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-bold text-gray-900 mb-2">표지 선택</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              템플릿을 고르거나, 첫 책의 표지를 자동으로 사용할 수 있어요.
+            </p>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+              {/* 첫 책 자동 옵션 */}
+              <button
+                onClick={() => updateLibraryCover(null)}
+                className={`group relative aspect-[3/2] rounded-xl overflow-hidden border-2 transition ${
+                  !library.cover_image ? 'border-teal-500 ring-2 ring-teal-200' : 'border-gray-200 hover:border-teal-300'
+                }`}
+              >
+                <div className="w-full h-full bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+                  <div className="text-center px-2">
+                    <div className="text-2xl mb-1">📚</div>
+                    <div className="text-xs font-semibold text-gray-700">첫 책 자동</div>
+                    <div className="text-[10px] text-gray-500 mt-0.5">책의 표지를 사용</div>
+                  </div>
+                </div>
+              </button>
+
+              {LIBRARY_TEMPLATES.map((tpl) => {
+                const selected = isTemplateValue(library.cover_image) && templateKey(library.cover_image) === tpl.key;
+                return (
+                  <button
+                    key={tpl.key}
+                    onClick={() => updateLibraryCover(templateValue(tpl.key))}
+                    className={`group relative aspect-[3/2] rounded-xl overflow-hidden border-2 transition ${
+                      selected ? 'border-teal-500 ring-2 ring-teal-200' : 'border-gray-200 hover:border-teal-300'
+                    }`}
+                    style={{ background: tpl.background }}
+                  >
+                    <div className="w-full h-full flex flex-col items-center justify-center" style={{ color: tpl.textColor }}>
+                      <div className="text-3xl mb-1">{tpl.emoji}</div>
+                      <div className="text-xs font-semibold drop-shadow-sm">{tpl.name}</div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowCoverModal(false)}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

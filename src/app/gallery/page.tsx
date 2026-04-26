@@ -18,7 +18,7 @@ export default async function GalleryPage() {
       .limit(120),
     supabase
       .from('book_libraries')
-      .select('*, book_items(id, title, cover_image, page_count)')
+      .select('*, book_items(id, title, cover_image, page_count, sort_order)')
       .eq('is_public', true)
       .order('created_at', { ascending: false })
       .limit(60),
