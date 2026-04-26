@@ -71,8 +71,23 @@ export default function FlipbookViewer({ pdfUrl, title, embedded = false, r2Base
   const flipBookRef = useRef<ReturnType<typeof HTMLFlipBook> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<HTMLDivElement>(null);
-  const [dimensions, setDimensions] = useState({ width: 500, height: 706 });
-  const [isPortrait, setIsPortrait] = useState(false);
+  // 첫 렌더부터 정확한 모바일/데스크톱 사이즈로 시작
+  // (SSR 직후 hydration 시점에 window 기준으로 결정 → react-pageflip이 데스크톱 사이즈로 마운트되는 깜빡임 방지)
+  const [isPortrait, setIsPortrait] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth < 768;
+  });
+  const [dimensions, setDimensions] = useState(() => {
+    if (typeof window === 'undefined') return { width: 500, height: 706 };
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    if (w < 768) {
+      const pageW = Math.max(200, Math.min(w - 24, Math.floor((h - 120) / 1.414)));
+      return { width: pageW, height: Math.floor(pageW * 1.414) };
+    }
+    const pageW = Math.max(280, Math.min((w - 160) / 2, Math.floor((h - 180) / 1.414)));
+    return { width: Math.floor(pageW), height: Math.floor(pageW * 1.414) };
+  });
 
   const updateDimensions = useCallback(() => {
     if (!containerRef.current) return;
