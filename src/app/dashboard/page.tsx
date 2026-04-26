@@ -15,6 +15,7 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<Tab>('books');
   const [uploading, setUploading] = useState(false);
   const [showLibraryModal, setShowLibraryModal] = useState(false);
+  const [selectionMode, setSelectionMode] = useState(false);
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [selectedBooks, setSelectedBooks] = useState<string[]>([]);
   const [newTitle, setNewTitle] = useState('');
@@ -29,7 +30,6 @@ export default function DashboardPage() {
   }, []);
 
   const initSession = async () => {
-    // 스마택트에서 토큰 전달받은 경우 세션 설정
     const params = new URLSearchParams(window.location.search);
     const accessToken = params.get('access_token');
     const refreshToken = params.get('refresh_token');
@@ -39,7 +39,6 @@ export default function DashboardPage() {
         access_token: accessToken,
         refresh_token: refreshToken,
       });
-      // URL에서 토큰 제거 (깔끔하게)
       window.history.replaceState({}, '', '/dashboard');
     }
 
@@ -117,7 +116,6 @@ export default function DashboardPage() {
 
       loadData();
 
-      // R2 변환 백그라운드 트리거 (실패해도 PDF 뷰어로 fallback)
       if (inserted?.id) {
         fetch('/api/flipbook/process', {
           method: 'POST',
@@ -193,6 +191,7 @@ export default function DashboardPage() {
       setNewTitle('');
       setNewDescription('');
       setSelectedBooks([]);
+      setSelectionMode(false);
       setShowGroupModal(false);
       loadData();
     }
@@ -202,6 +201,45 @@ export default function DashboardPage() {
     setSelectedBooks(prev =>
       prev.includes(bookId) ? prev.filter(id => id !== bookId) : [...prev, bookId]
     );
+  };
+
+  const enterSelectionMode = () => {
+    setSelectedBooks([]);
+    setSelectionMode(true);
+  };
+
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedBooks([]);
+    setNewTitle('');
+    setNewDescription('');
+    setShowGroupModal(false);
+  };
+
+  const toggleBookPublic = async (book: Book) => {
+    const next = !book.is_public;
+    setBooks(prev => prev.map(b => (b.id === book.id ? { ...b, is_public: next } : b)));
+    const { error } = await supabase
+      .from('book_items')
+      .update({ is_public: next })
+      .eq('id', book.id);
+    if (error) {
+      setBooks(prev => prev.map(b => (b.id === book.id ? { ...b, is_public: !next } : b)));
+      alert('공개 설정 변경에 실패했습니다.');
+    }
+  };
+
+  const toggleLibraryPublic = async (library: Library) => {
+    const next = !library.is_public;
+    setLibraries(prev => prev.map(l => (l.id === library.id ? { ...l, is_public: next } : l)));
+    const { error } = await supabase
+      .from('book_libraries')
+      .update({ is_public: next })
+      .eq('id', library.id);
+    if (error) {
+      setLibraries(prev => prev.map(l => (l.id === library.id ? { ...l, is_public: !next } : l)));
+      alert('공개 설정 변경에 실패했습니다.');
+    }
   };
 
   const standaloneBooks = books.filter(b => !b.library_id);
@@ -226,6 +264,12 @@ export default function DashboardPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <a
+              href="/gallery"
+              className="px-4 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition text-sm"
+            >
+              구경하기
+            </a>
             {user?.role === 'admin' && (
               <a
                 href="/dashboard/admin"
@@ -279,7 +323,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <main className="max-w-6xl mx-auto px-4 py-8">
+      <main className="max-w-6xl mx-auto px-4 py-8 pb-32">
         {!canAddMore && (
           <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
             무료 플립북 {MAX_BOOKS}개를 모두 사용했습니다. 추가 등록이 필요하면 관리자에게 문의하세요.
@@ -289,14 +333,20 @@ export default function DashboardPage() {
         {/* 플립북 탭 */}
         {activeTab === 'books' && (
           <>
-            {standaloneBooks.length > 0 && (
+            {standaloneBooks.length > 0 && !selectionMode && (
               <div className="mb-6 flex justify-end">
                 <button
-                  onClick={() => { setSelectedBooks([]); setShowGroupModal(true); }}
+                  onClick={enterSelectionMode}
                   className="px-4 py-2 border border-teal-200 text-teal-600 rounded-lg hover:bg-teal-50 transition text-sm"
                 >
                   선택해서 도서관 만들기
                 </button>
+              </div>
+            )}
+
+            {selectionMode && (
+              <div className="mb-6 p-3 bg-teal-50 border border-teal-100 rounded-lg text-sm text-teal-800">
+                묶을 플립북을 체크하세요. (단독 플립북만 묶을 수 있어요)
               </div>
             )}
 
@@ -313,71 +363,106 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {books.map((book) => (
-                  <div
-                    key={book.id}
-                    className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-4">
-                      {showGroupModal && !book.library_id && (
-                        <input
-                          type="checkbox"
-                          checked={selectedBooks.includes(book.id)}
-                          onChange={() => toggleBookSelection(book.id)}
-                          className="w-4 h-4 text-teal-600 rounded"
-                        />
-                      )}
-                      <div className="w-12 h-16 bg-gradient-to-br from-amber-50 to-orange-100 rounded flex items-center justify-center flex-shrink-0">
-                        <svg className="w-6 h-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                        </svg>
-                      </div>
-                      <div>
-                        <h3 className="font-medium text-gray-800">{book.title}</h3>
-                        <div className="flex items-center gap-2 mt-1">
-                          {book.library_id ? (
-                            <span className="text-xs bg-teal-50 text-teal-600 px-2 py-0.5 rounded">
-                              도서관에 포함됨
-                            </span>
-                          ) : (
-                            <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">
-                              단독
-                            </span>
-                          )}
+                {books.map((book) => {
+                  const selectable = selectionMode && !book.library_id;
+                  const checked = selectedBooks.includes(book.id);
+                  return (
+                    <div
+                      key={book.id}
+                      onClick={selectable ? () => toggleBookSelection(book.id) : undefined}
+                      className={`bg-white rounded-xl border p-4 flex items-center justify-between transition ${
+                        selectable
+                          ? checked
+                            ? 'border-teal-500 ring-2 ring-teal-200 cursor-pointer'
+                            : 'border-gray-200 hover:border-teal-300 cursor-pointer'
+                          : 'border-gray-200'
+                      }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        {selectionMode && (
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={!selectable}
+                            onChange={() => toggleBookSelection(book.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-5 h-5 text-teal-600 rounded disabled:opacity-30"
+                          />
+                        )}
+                        <div className="w-12 h-16 bg-gradient-to-br from-amber-50 to-orange-100 rounded flex items-center justify-center flex-shrink-0">
+                          <svg className="w-6 h-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-gray-800">{book.title}</h3>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            {book.library_id ? (
+                              <span className="text-xs bg-teal-50 text-teal-600 px-2 py-0.5 rounded">
+                                도서관에 포함됨
+                              </span>
+                            ) : (
+                              <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">
+                                단독
+                              </span>
+                            )}
+                            {book.is_public ? (
+                              <span className="text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded">
+                                공개 중
+                              </span>
+                            ) : (
+                              <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">
+                                비공개
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center gap-2">
-                      <a
-                        href={`/book/${book.id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-3 py-1.5 text-sm border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition"
-                      >
-                        보기
-                      </a>
-                      <button
-                        onClick={() => copyBookLink(book.id)}
-                        className="px-3 py-1.5 text-sm border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition"
-                      >
-                        링크
-                      </button>
-                      <button
-                        onClick={() => copyEmbedCode(book.id)}
-                        className="px-3 py-1.5 text-sm border border-teal-200 text-teal-600 rounded-lg hover:bg-teal-50 transition"
-                      >
-                        임베드
-                      </button>
-                      <button
-                        onClick={() => deleteBook(book)}
-                        className="px-3 py-1.5 text-sm border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition"
-                      >
-                        삭제
-                      </button>
+                      {!selectionMode && (
+                        <div className="flex items-center gap-2 flex-wrap justify-end">
+                          <button
+                            onClick={() => toggleBookPublic(book)}
+                            className={`px-3 py-1.5 text-sm rounded-lg border transition ${
+                              book.is_public
+                                ? 'border-green-300 bg-green-50 text-green-700 hover:bg-green-100'
+                                : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                            }`}
+                            title={book.is_public ? '비공개로 전환' : '갤러리에 공개'}
+                          >
+                            {book.is_public ? '🌐 공개' : '🔒 비공개'}
+                          </button>
+                          <a
+                            href={`/book/${book.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-1.5 text-sm border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition"
+                          >
+                            보기
+                          </a>
+                          <button
+                            onClick={() => copyBookLink(book.id)}
+                            className="px-3 py-1.5 text-sm border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition"
+                          >
+                            링크
+                          </button>
+                          <button
+                            onClick={() => copyEmbedCode(book.id)}
+                            className="px-3 py-1.5 text-sm border border-teal-200 text-teal-600 rounded-lg hover:bg-teal-50 transition"
+                          >
+                            임베드
+                          </button>
+                          <button
+                            onClick={() => deleteBook(book)}
+                            className="px-3 py-1.5 text-sm border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition"
+                          >
+                            삭제
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </>
@@ -411,13 +496,45 @@ export default function DashboardPage() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                 {libraries.map((lib) => (
-                  <LibraryCard key={lib.id} library={lib} isOwner />
+                  <LibraryCard
+                    key={lib.id}
+                    library={lib}
+                    isOwner
+                    onTogglePublic={() => toggleLibraryPublic(lib)}
+                  />
                 ))}
               </div>
             )}
           </>
         )}
       </main>
+
+      {/* 선택 모드 하단 액션 바 */}
+      {selectionMode && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-30">
+          <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+            <p className="text-sm text-gray-700">
+              <span className="font-semibold text-teal-600">{selectedBooks.length}권</span> 선택됨
+              {selectedBooks.length === 0 && <span className="text-gray-400 ml-2">위 목록에서 체크하세요</span>}
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={exitSelectionMode}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => setShowGroupModal(true)}
+                disabled={selectedBooks.length === 0}
+                className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                도서관으로 묶기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 도서관 생성 모달 */}
       {showLibraryModal && (
@@ -454,12 +571,12 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* 도서관으로 묶기 모달 */}
+      {/* 도서관으로 묶기 모달 (선택 후 이름 입력) */}
       {showGroupModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-md p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-2">도서관으로 묶기</h2>
-            <p className="text-sm text-gray-500 mb-4">위 목록에서 플립북을 선택한 후, 도서관 이름을 입력하세요.</p>
+            <p className="text-sm text-teal-600 mb-4">{selectedBooks.length}권 선택됨</p>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">도서관 이름 *</label>
@@ -467,8 +584,9 @@ export default function DashboardPage() {
                   type="text"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="예: 시니어 교육 자료"
+                  placeholder="예: 경기도어린이박물관 그림책"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                  autoFocus
                 />
               </div>
               <div>
@@ -481,11 +599,21 @@ export default function DashboardPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                 />
               </div>
-              <p className="text-sm text-teal-600">{selectedBooks.length}개 선택됨</p>
             </div>
             <div className="flex gap-3 mt-6">
-              <button onClick={() => { setShowGroupModal(false); setSelectedBooks([]); setNewTitle(''); setNewDescription(''); }} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">취소</button>
-              <button onClick={groupBooksToLibrary} disabled={!newTitle.trim() || selectedBooks.length === 0} className="flex-1 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition disabled:opacity-50">도서관 만들기</button>
+              <button
+                onClick={() => setShowGroupModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+              >
+                뒤로
+              </button>
+              <button
+                onClick={groupBooksToLibrary}
+                disabled={!newTitle.trim() || selectedBooks.length === 0}
+                className="flex-1 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition disabled:opacity-50"
+              >
+                도서관 만들기
+              </button>
             </div>
           </div>
         </div>

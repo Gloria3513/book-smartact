@@ -6,9 +6,10 @@ import type { Library } from '@/types';
 interface LibraryCardProps {
   library: Library;
   isOwner?: boolean;
+  onTogglePublic?: () => void;
 }
 
-export default function LibraryCard({ library, isOwner = false }: LibraryCardProps) {
+export default function LibraryCard({ library, isOwner = false, onTogglePublic }: LibraryCardProps) {
   const bookCount = library.book_items?.length ?? 0;
 
   return (
@@ -31,7 +32,11 @@ export default function LibraryCard({ library, isOwner = false }: LibraryCardPro
             <span className="text-sm font-medium">{bookCount}권</span>
           </div>
         )}
-        {!library.is_public && (
+        {library.is_public ? (
+          <span className="absolute top-2 right-2 bg-green-600 text-white text-xs px-2 py-1 rounded">
+            공개
+          </span>
+        ) : (
           <span className="absolute top-2 right-2 bg-gray-800 text-white text-xs px-2 py-1 rounded">
             비공개
           </span>
@@ -47,8 +52,22 @@ export default function LibraryCard({ library, isOwner = false }: LibraryCardPro
         )}
         <div className="flex items-center justify-between mt-3 text-xs text-gray-400">
           <span>{bookCount}권의 책</span>
-          {isOwner && (
-            <span className="bg-teal-50 text-teal-600 px-2 py-0.5 rounded">관리</span>
+          {isOwner && onTogglePublic && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onTogglePublic();
+              }}
+              className={`px-2 py-1 rounded border transition ${
+                library.is_public
+                  ? 'border-green-300 bg-green-50 text-green-700 hover:bg-green-100'
+                  : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              {library.is_public ? '🌐 공개 중' : '🔒 비공개'}
+            </button>
           )}
         </div>
       </div>

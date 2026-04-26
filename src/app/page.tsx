@@ -41,6 +41,12 @@ export default function HomePage() {
           <span className="text-sm text-gray-400 mt-1">by SMARTACT</span>
         </div>
         <div className="flex items-center gap-4">
+          <Link
+            href="/gallery"
+            className="text-sm text-gray-600 hover:text-gray-900 transition"
+          >
+            구경하기
+          </Link>
           {loggedIn ? (
             <Link
               href="/dashboard"

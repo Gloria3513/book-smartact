@@ -40,4 +40,5 @@ export interface Book {
   r2_base_url: string | null;
   status: BookStatus;
   error_message: string | null;
+  is_public: boolean;
 }
