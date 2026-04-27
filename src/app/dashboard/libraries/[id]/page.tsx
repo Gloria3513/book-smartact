@@ -467,6 +467,14 @@ export default function LibraryDetailPage() {
                     {book.page_count && (
                       <p className="text-sm text-gray-500">{book.page_count}페이지</p>
                     )}
+                    {book.status === 'failed' && book.error_message && (
+                      <p
+                        className="mt-1 text-xs text-red-600 bg-red-50 border border-red-100 rounded px-2 py-1 max-w-md truncate"
+                        title={book.error_message}
+                      >
+                        변환 실패: {book.error_message}
+                      </p>
+                    )}
                   </div>
                 </div>
 
