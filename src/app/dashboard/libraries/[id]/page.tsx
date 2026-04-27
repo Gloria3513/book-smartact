@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import type { Library, Book, User } from '@/types';
 import { LibraryCover, TemplateCover } from '@/components/LibraryCard';
+import { EMOJIS } from '@/components/EmojiReactions';
 import {
   templateValue,
   isTemplateValue,
@@ -32,6 +33,7 @@ export default function LibraryDetailPage() {
   const [availableBooks, setAvailableBooks] = useState<Book[]>([]);
   const [selectedToAdd, setSelectedToAdd] = useState<string[]>([]);
   const [coverUploading, setCoverUploading] = useState(false);
+  const [bookReactions, setBookReactions] = useState<Record<string, Record<string, number>>>({});
 
   const supabase = createClient();
 
@@ -61,6 +63,24 @@ export default function LibraryDetailPage() {
       .eq('library_id', libraryId)
       .order('sort_order', { ascending: true });
     setBooks((bookList as Book[]) ?? []);
+
+    // 작가만 볼 수 있는 책별 이모지 반응 카운트
+    const myBookIds = ((bookList as Book[]) ?? []).map(b => b.id);
+    if (myBookIds.length > 0) {
+      const { data: reacts } = await supabase
+        .from('reactions')
+        .select('target_id, emoji_key')
+        .eq('target_type', 'book')
+        .in('target_id', myBookIds);
+      const grouped: Record<string, Record<string, number>> = {};
+      for (const r of (reacts ?? []) as { target_id: string; emoji_key: string }[]) {
+        if (!grouped[r.target_id]) grouped[r.target_id] = {};
+        grouped[r.target_id][r.emoji_key] = (grouped[r.target_id][r.emoji_key] ?? 0) + 1;
+      }
+      setBookReactions(grouped);
+    } else {
+      setBookReactions({});
+    }
 
     setLoading(false);
   }, [libraryId, supabase]);
@@ -507,6 +527,20 @@ export default function LibraryDetailPage() {
                       >
                         변환 실패: {book.error_message}
                       </p>
+                    )}
+                    {bookReactions[book.id] && Object.values(bookReactions[book.id]).some(v => v > 0) && (
+                      <div className="flex items-center gap-2 mt-1.5 text-xs text-gray-600" title="이 책에 도착한 응원 (작가만 보임)">
+                        {EMOJIS.map(({ key, emoji }) => {
+                          const count = bookReactions[book.id]?.[key] ?? 0;
+                          if (count === 0) return null;
+                          return (
+                            <span key={key} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-50 border border-amber-100 rounded-full">
+                              <span>{emoji}</span>
+                              <span className="font-semibold">{count}</span>
+                            </span>
+                          );
+                        })}
+                      </div>
                     )}
                   </div>
                 </div>

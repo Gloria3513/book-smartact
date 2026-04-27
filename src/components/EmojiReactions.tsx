@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from 'react';
 
-const EMOJIS = [
+export const EMOJIS = [
   { key: 'cheer', emoji: '👏', label: '응원해요' },
   { key: 'cool',  emoji: '🎨', label: '멋져요' },
   { key: 'fun',   emoji: '📖', label: '재밌어요' },
 ] as const;
+
+export type EmojiKey = typeof EMOJIS[number]['key'];
 
 interface Props {
   targetType: 'book' | 'library';
