@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
-import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js';
 import { uploadToR2, r2PublicUrl, isR2Configured } from '@/lib/r2';
 
-// Vercel serverless에서 pdfjs-dist의 fake worker가
-// pdf.worker.mjs를 동적 require할 때 사용할 절대 경로 확보용.
-const nodeRequire = createRequire(import.meta.url);
+// Turbopack 정적 분석에 걸리지 않도록 require.resolve 대신
+// process.cwd() + node_modules 절대 경로를 직접 조립한다.
+function nodeModulePath(...segments: string[]): string {
+  return path.join(process.cwd(), 'node_modules', ...segments);
+}
 
 // 한글 폰트를 캔버스에 등록 (모듈 로드 시 1회).
 // PDF에 폰트가 임베딩 안 된 채로 시스템 폰트 fallback하는 경우
@@ -17,7 +18,7 @@ async function ensureKoreanFontRegistered() {
   if (koreanFontRegistered) return;
   try {
     const { GlobalFonts } = await import('@napi-rs/canvas');
-    const fontPath = nodeRequire.resolve('@fontsource/noto-sans-kr/files/noto-sans-kr-korean-400-normal.woff');
+    const fontPath = nodeModulePath('@fontsource/noto-sans-kr/files/noto-sans-kr-korean-400-normal.woff');
     GlobalFonts.registerFromPath(fontPath, 'Noto Sans KR');
     koreanFontRegistered = true;
   } catch (e) {
@@ -76,7 +77,7 @@ export async function POST(req: Request) {
     // Node 환경에서 fake worker가 worker 모듈을 못 찾으면 실패하므로
     // workerSrc를 worker 파일의 절대 경로로 명시한다.
     try {
-      const workerPath = nodeRequire.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs');
+      const workerPath = nodeModulePath('pdfjs-dist/legacy/build/pdf.worker.mjs');
       (pdfjsLib as unknown as { GlobalWorkerOptions: { workerSrc: string } })
         .GlobalWorkerOptions.workerSrc = workerPath;
     } catch (e) {
@@ -87,8 +88,7 @@ export async function POST(req: Request) {
 
     // pdfjs-dist의 cmap (한중일 매핑) + standard fonts 디렉토리 경로
     // PDF에 폰트가 임베딩 안 됐을 때 글자가 깨지지 않도록 fallback에 필요.
-    const pdfjsRoot = path.dirname(nodeRequire.resolve('pdfjs-dist/legacy/build/pdf.mjs'))
-      .replace(/legacy[\\/]+build$/, '');
+    const pdfjsRoot = nodeModulePath('pdfjs-dist');
     const cMapUrl = pathToFileURL(path.join(pdfjsRoot, 'cmaps') + path.sep).href;
     const standardFontDataUrl = pathToFileURL(path.join(pdfjsRoot, 'standard_fonts') + path.sep).href;
 
