@@ -28,6 +28,9 @@ export default function LibraryDetailPage() {
   const [editingLibraryName, setEditingLibraryName] = useState(false);
   const [libraryNameDraft, setLibraryNameDraft] = useState('');
   const [showCoverModal, setShowCoverModal] = useState(false);
+  const [showAddBooksModal, setShowAddBooksModal] = useState(false);
+  const [availableBooks, setAvailableBooks] = useState<Book[]>([]);
+  const [selectedToAdd, setSelectedToAdd] = useState<string[]>([]);
 
   const supabase = createClient();
 
@@ -149,6 +152,54 @@ export default function LibraryDetailPage() {
     } catch (err) {
       console.error('표지 변환 실패:', err);
       alert(`표지 변환에 실패했어요. 잠시 후 다시 시도해주세요.\n${err instanceof Error ? err.message : ''}`);
+      loadData();
+    }
+  };
+
+  const openAddBooksModal = async () => {
+    setSelectedToAdd([]);
+    setShowAddBooksModal(true);
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return;
+    const { data } = await supabase
+      .from('book_items')
+      .select('*')
+      .eq('owner_id', authUser.id)
+      .is('library_id', null)
+      .order('created_at', { ascending: false });
+    setAvailableBooks((data as Book[]) ?? []);
+  };
+
+  const toggleBookToAdd = (bookId: string) => {
+    setSelectedToAdd(prev =>
+      prev.includes(bookId) ? prev.filter(id => id !== bookId) : [...prev, bookId]
+    );
+  };
+
+  const addBooksToLibrary = async () => {
+    if (selectedToAdd.length === 0) return;
+    const { error } = await supabase
+      .from('book_items')
+      .update({ library_id: libraryId })
+      .in('id', selectedToAdd);
+    if (error) {
+      alert('도서관 추가에 실패했습니다.');
+      return;
+    }
+    setShowAddBooksModal(false);
+    setSelectedToAdd([]);
+    loadData();
+  };
+
+  const removeBookFromLibrary = async (book: Book) => {
+    if (!confirm(`"${book.title}"을(를) 이 도서관에서 빼시겠습니까?\n(책 자체는 삭제되지 않고 단독 플립북으로 남습니다)`)) return;
+    setBooks(prev => prev.filter(b => b.id !== book.id));
+    const { error } = await supabase
+      .from('book_items')
+      .update({ library_id: null })
+      .eq('id', book.id);
+    if (error) {
+      alert('도서관에서 빼기에 실패했습니다.');
       loadData();
     }
   };
@@ -295,6 +346,12 @@ export default function LibraryDetailPage() {
                 className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm"
               >
                 도서관 링크 복사
+              </button>
+              <button
+                onClick={openAddBooksModal}
+                className="px-4 py-2 border border-teal-200 text-teal-700 rounded-lg hover:bg-teal-50 transition text-sm"
+              >
+                기존 플립북 추가
               </button>
               <label className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition text-sm cursor-pointer">
                 {uploading ? '업로드 중...' : '+ PDF 추가'}
@@ -445,6 +502,13 @@ export default function LibraryDetailPage() {
                     임베드 복사
                   </button>
                   <button
+                    onClick={() => removeBookFromLibrary(book)}
+                    className="px-3 py-1.5 text-sm border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition"
+                    title="이 책을 도서관에서만 빼고 단독 플립북으로 남김 (책은 삭제되지 않음)"
+                  >
+                    도서관에서 빼기
+                  </button>
+                  <button
                     onClick={() => deleteBook(book.id, book.pdf_url)}
                     className="px-3 py-1.5 text-sm border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition"
                   >
@@ -527,6 +591,90 @@ export default function LibraryDetailPage() {
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* 기존 플립북 추가 모달 */}
+      {showAddBooksModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg p-6 max-h-[90vh] flex flex-col">
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">기존 플립북 추가</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  도서관에 속하지 않은 단독 플립북을 골라서 이 도서관에 넣어요.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowAddBooksModal(false)}
+                className="text-gray-400 hover:text-gray-700 transition text-xl leading-none"
+                aria-label="닫기"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto -mx-2 px-2 my-3 min-h-[120px]">
+              {availableBooks.length === 0 ? (
+                <div className="text-center py-12 text-sm text-gray-500">
+                  추가할 수 있는 단독 플립북이 없어요.
+                  <br />
+                  <span className="text-xs text-gray-400 mt-1 inline-block">대시보드에서 PDF를 새로 업로드하면 단독 플립북으로 추가돼요.</span>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {availableBooks.map((book) => {
+                    const checked = selectedToAdd.includes(book.id);
+                    return (
+                      <label
+                        key={book.id}
+                        className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition ${
+                          checked
+                            ? 'border-teal-500 bg-teal-50'
+                            : 'border-gray-200 hover:border-teal-300'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleBookToAdd(book.id)}
+                          className="w-5 h-5 text-teal-600 rounded"
+                        />
+                        <div className="w-10 h-12 bg-gradient-to-br from-amber-50 to-orange-100 rounded flex-shrink-0 overflow-hidden">
+                          {book.cover_image && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={book.cover_image} alt={book.title} className="w-full h-full object-cover" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-gray-800 truncate">{book.title}</div>
+                          {book.page_count && (
+                            <div className="text-xs text-gray-500">{book.page_count}페이지</div>
+                          )}
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 pt-3 border-t border-gray-100">
+              <button
+                onClick={() => setShowAddBooksModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+              >
+                취소
+              </button>
+              <button
+                onClick={addBooksToLibrary}
+                disabled={selectedToAdd.length === 0}
+                className="flex-1 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {selectedToAdd.length}권 추가하기
+              </button>
+            </div>
           </div>
         </div>
       )}
