@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import FlipbookViewer from '@/components/FlipbookViewer';
+import EmojiReactions from '@/components/EmojiReactions';
 import { notFound } from 'next/navigation';
 import type { Book } from '@/types';
 
@@ -81,6 +82,10 @@ export default async function BookPage({ params, searchParams }: PageProps) {
         r2BaseUrl={book.r2_base_url}
         pageCount={book.page_count}
       />
+      {/* 책 응원 — 누구나 누를 수 있고 카운트는 비공개(작가만 봄) */}
+      <div className="fixed bottom-3 right-3 z-40 bg-white/90 backdrop-blur-sm rounded-full shadow-lg p-1.5 border border-gray-200">
+        <EmojiReactions targetType="book" targetId={book.id} size="sm" />
+      </div>
     </div>
   );
 }

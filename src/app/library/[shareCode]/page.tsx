@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import BookCard from '@/components/BookCard';
+import EmojiReactions from '@/components/EmojiReactions';
 import { notFound } from 'next/navigation';
 import type { Library, Book } from '@/types';
 
@@ -127,6 +128,11 @@ export default async function LibraryPage({ params }: PageProps) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
             </svg>
             {books.length}권의 책이 있어요
+          </div>
+
+          {/* 도서관 응원 — 누구나 누를 수 있고 카운트 공개 */}
+          <div className="mt-6 flex justify-center">
+            <EmojiReactions targetType="library" targetId={library.id} showCounts />
           </div>
         </div>
       </header>
