@@ -1,11 +1,29 @@
 import { NextResponse } from 'next/server';
 import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
+import path from 'node:path';
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js';
 import { uploadToR2, r2PublicUrl, isR2Configured } from '@/lib/r2';
 
 // Vercel serverless에서 pdfjs-dist의 fake worker가
 // pdf.worker.mjs를 동적 require할 때 사용할 절대 경로 확보용.
 const nodeRequire = createRequire(import.meta.url);
+
+// 한글 폰트를 캔버스에 등록 (모듈 로드 시 1회).
+// PDF에 폰트가 임베딩 안 된 채로 시스템 폰트 fallback하는 경우
+// 서버에 한글 폰트가 없으면 □□□로 깨짐 → Noto Sans KR을 미리 등록한다.
+let koreanFontRegistered = false;
+async function ensureKoreanFontRegistered() {
+  if (koreanFontRegistered) return;
+  try {
+    const { GlobalFonts } = await import('@napi-rs/canvas');
+    const fontPath = nodeRequire.resolve('@fontsource/noto-sans-kr/files/noto-sans-kr-korean-400-normal.woff');
+    GlobalFonts.registerFromPath(fontPath, 'Noto Sans KR');
+    koreanFontRegistered = true;
+  } catch (e) {
+    console.warn('한글 폰트 등록 실패:', e);
+  }
+}
 
 // 최대 120초 (50-80페이지 변환 여유)
 export const maxDuration = 120;
@@ -45,6 +63,9 @@ export async function POST(req: Request) {
   }).eq('id', bookId);
 
   try {
+    // 한글 폰트 등록 (모듈 로드 후 1회)
+    await ensureKoreanFontRegistered();
+
     // 3. PDF 다운로드
     const pdfRes = await fetch(book.pdf_url);
     if (!pdfRes.ok) throw new Error(`PDF fetch failed: ${pdfRes.status}`);
@@ -64,8 +85,18 @@ export async function POST(req: Request) {
     const { getDocument } = pdfjsLib;
     const { createCanvas } = await import('@napi-rs/canvas');
 
+    // pdfjs-dist의 cmap (한중일 매핑) + standard fonts 디렉토리 경로
+    // PDF에 폰트가 임베딩 안 됐을 때 글자가 깨지지 않도록 fallback에 필요.
+    const pdfjsRoot = path.dirname(nodeRequire.resolve('pdfjs-dist/legacy/build/pdf.mjs'))
+      .replace(/legacy[\\/]+build$/, '');
+    const cMapUrl = pathToFileURL(path.join(pdfjsRoot, 'cmaps') + path.sep).href;
+    const standardFontDataUrl = pathToFileURL(path.join(pdfjsRoot, 'standard_fonts') + path.sep).href;
+
     const pdf = await getDocument({
       data: pdfBuffer,
+      cMapUrl,
+      cMapPacked: true,
+      standardFontDataUrl,
       useSystemFonts: true,
       disableFontFace: false,
     }).promise;

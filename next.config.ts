@@ -8,6 +8,12 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     '/api/flipbook/process': [
       './node_modules/pdfjs-dist/legacy/build/**/*',
+      // 한중일 cmap (글자 깨짐 방지)
+      './node_modules/pdfjs-dist/cmaps/**/*',
+      // standard fonts (폰트 임베딩 안 된 PDF의 fallback)
+      './node_modules/pdfjs-dist/standard_fonts/**/*',
+      // 한글 시스템 폰트 (서버에 한글 폰트가 없으면 □□□ 깨짐)
+      './node_modules/@fontsource/noto-sans-kr/files/noto-sans-kr-korean-400-normal.woff',
     ],
   },
 };
