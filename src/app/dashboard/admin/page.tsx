@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase';
+import { EMOJIS } from '@/components/EmojiReactions';
 import type { Book, Library, User } from '@/types';
 
 interface UserStat {
@@ -12,13 +13,18 @@ interface UserStat {
   library_count: number;
 }
 
+type ReactionAggMap = Record<string, Record<string, number>>;
+
 export default function AdminPage() {
   const [user, setUser] = useState<User | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'books' | 'libraries' | 'users'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'books' | 'libraries' | 'users' | 'reactions'>('overview');
   const [allBooks, setAllBooks] = useState<(Book & { owner_name?: string })[]>([]);
   const [allLibraries, setAllLibraries] = useState<(Library & { owner_name?: string })[]>([]);
   const [userStats, setUserStats] = useState<UserStat[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reactionsByBook, setReactionsByBook] = useState<ReactionAggMap>({});
+  const [reactionsByLibrary, setReactionsByLibrary] = useState<ReactionAggMap>({});
+  const [reactionTotal, setReactionTotal] = useState(0);
 
   const supabase = createClient();
 
@@ -83,6 +89,23 @@ export default function AdminPage() {
     }));
     setUserStats(stats.sort((a, b) => b.book_count - a.book_count));
 
+    // 전체 응원 (admin은 모든 책 reaction 조회 가능)
+    const { data: reacts } = await supabase
+      .from('reactions')
+      .select('target_type, target_id, emoji_key');
+    const byBook: ReactionAggMap = {};
+    const byLib: ReactionAggMap = {};
+    let total = 0;
+    for (const r of (reacts ?? []) as { target_type: string; target_id: string; emoji_key: string }[]) {
+      total++;
+      const target = r.target_type === 'book' ? byBook : byLib;
+      if (!target[r.target_id]) target[r.target_id] = {};
+      target[r.target_id][r.emoji_key] = (target[r.target_id][r.emoji_key] ?? 0) + 1;
+    }
+    setReactionsByBook(byBook);
+    setReactionsByLibrary(byLib);
+    setReactionTotal(total);
+
     setLoading(false);
   }, [supabase]);
 
@@ -144,7 +167,7 @@ export default function AdminPage() {
       {/* 탭 */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-6xl mx-auto px-4 flex gap-6">
-          {(['overview', 'books', 'libraries', 'users'] as const).map((tab) => (
+          {(['overview', 'books', 'libraries', 'users', 'reactions'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -154,7 +177,7 @@ export default function AdminPage() {
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
-              {{ overview: '개요', books: `플립북 (${totalBooks})`, libraries: `도서관 (${totalLibraries})`, users: `사용자 (${totalUsers})` }[tab]}
+              {{ overview: '개요', books: `플립북 (${totalBooks})`, libraries: `도서관 (${totalLibraries})`, users: `사용자 (${totalUsers})`, reactions: `응원 (${reactionTotal})` }[tab]}
             </button>
           ))}
         </div>
@@ -163,7 +186,7 @@ export default function AdminPage() {
       <main className="max-w-6xl mx-auto px-4 py-8">
         {/* 개요 탭 */}
         {activeTab === 'overview' && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div className="bg-white rounded-xl border border-gray-200 p-6">
               <p className="text-sm text-gray-500">전체 플립북</p>
               <p className="text-3xl font-bold text-gray-900 mt-1">{totalBooks}</p>
@@ -176,8 +199,12 @@ export default function AdminPage() {
               <p className="text-sm text-gray-500">전체 사용자</p>
               <p className="text-3xl font-bold text-gray-900 mt-1">{totalUsers}</p>
             </div>
+            <div className="bg-white rounded-xl border border-amber-200 p-6">
+              <p className="text-sm text-amber-700">받은 응원</p>
+              <p className="text-3xl font-bold text-amber-700 mt-1">{reactionTotal}</p>
+            </div>
 
-            <div className="md:col-span-3 bg-white rounded-xl border border-gray-200 p-6">
+            <div className="col-span-2 md:col-span-4 bg-white rounded-xl border border-gray-200 p-6">
               <h3 className="font-semibold text-gray-900 mb-4">사용자별 현황 (상위 10명)</h3>
               <table className="w-full text-sm">
                 <thead>
@@ -299,6 +326,135 @@ export default function AdminPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* 응원 탭 — 도서관·책별 카운트 ranking */}
+        {activeTab === 'reactions' && (
+          <div className="space-y-8">
+            {/* 도서관 ranking */}
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+                <h3 className="font-semibold text-gray-900">공개 도서관 응원 ranking</h3>
+                <span className="text-xs text-gray-400">응원 합계 많은 순</span>
+              </div>
+              {(() => {
+                const rows = allLibraries
+                  .map((lib) => {
+                    const counts = reactionsByLibrary[lib.id] ?? {};
+                    const sum = Object.values(counts).reduce((a, b) => a + b, 0);
+                    return { lib, counts, sum };
+                  })
+                  .filter((r) => r.sum > 0)
+                  .sort((a, b) => b.sum - a.sum);
+                if (rows.length === 0) {
+                  return <p className="text-center py-12 text-sm text-gray-400">아직 도서관에 도착한 응원이 없어요.</p>;
+                }
+                return (
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-gray-50 text-left text-gray-500 text-xs">
+                        <th className="px-4 py-2 w-10">#</th>
+                        <th className="px-4 py-2">도서관</th>
+                        <th className="px-4 py-2">소유자</th>
+                        <th className="px-4 py-2 text-right">반응</th>
+                        <th className="px-4 py-2 text-right">합계</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((r, i) => (
+                        <tr key={r.lib.id} className="border-t border-gray-100">
+                          <td className="px-4 py-3 text-gray-400 text-xs">{i + 1}</td>
+                          <td className="px-4 py-3">
+                            <a href={`/library/${r.lib.share_code}`} target="_blank" rel="noopener noreferrer" className="text-gray-800 hover:text-teal-700 transition">{r.lib.title}</a>
+                          </td>
+                          <td className="px-4 py-3 text-gray-500 text-xs">{r.lib.owner_name}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                              {EMOJIS.map(({ key, emoji }) => {
+                                const count = r.counts[key] ?? 0;
+                                if (count === 0) return null;
+                                return (
+                                  <span key={key} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-50 border border-amber-100 rounded-full text-xs">
+                                    <span>{emoji}</span>
+                                    <span className="font-semibold">{count}</span>
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-right font-bold text-amber-700">{r.sum}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                );
+              })()}
+            </div>
+
+            {/* 책 ranking */}
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+                <h3 className="font-semibold text-gray-900">개별 책 응원 ranking</h3>
+                <span className="text-xs text-gray-400">응원 합계 많은 순</span>
+              </div>
+              {(() => {
+                const rows = allBooks
+                  .map((book) => {
+                    const counts = reactionsByBook[book.id] ?? {};
+                    const sum = Object.values(counts).reduce((a, b) => a + b, 0);
+                    return { book, counts, sum };
+                  })
+                  .filter((r) => r.sum > 0)
+                  .sort((a, b) => b.sum - a.sum);
+                if (rows.length === 0) {
+                  return <p className="text-center py-12 text-sm text-gray-400">아직 책에 도착한 응원이 없어요.</p>;
+                }
+                return (
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-gray-50 text-left text-gray-500 text-xs">
+                        <th className="px-4 py-2 w-10">#</th>
+                        <th className="px-4 py-2">책</th>
+                        <th className="px-4 py-2">소유자</th>
+                        <th className="px-4 py-2 text-right">반응</th>
+                        <th className="px-4 py-2 text-right">합계</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((r, i) => (
+                        <tr key={r.book.id} className="border-t border-gray-100">
+                          <td className="px-4 py-3 text-gray-400 text-xs">{i + 1}</td>
+                          <td className="px-4 py-3">
+                            <a href={`/book/${r.book.id}`} target="_blank" rel="noopener noreferrer" className="text-gray-800 hover:text-teal-700 transition">{r.book.title}</a>
+                          </td>
+                          <td className="px-4 py-3 text-gray-500 text-xs">{r.book.owner_name}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                              {EMOJIS.map(({ key, emoji }) => {
+                                const count = r.counts[key] ?? 0;
+                                if (count === 0) return null;
+                                return (
+                                  <span key={key} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-50 border border-amber-100 rounded-full text-xs">
+                                    <span>{emoji}</span>
+                                    <span className="font-semibold">{count}</span>
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-right font-bold text-amber-700">{r.sum}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                );
+              })()}
+            </div>
+
+            <p className="text-xs text-gray-400 text-center">
+              voter 식별 정보는 저장되지 않아요(IP+UA 해시만). 위 카운트는 집계 결과예요.
+            </p>
           </div>
         )}
       </main>
