@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import FlipbookViewer from '@/components/FlipbookViewer';
 import { notFound } from 'next/navigation';
@@ -14,6 +15,43 @@ function safeBackHref(input: string | undefined): string | null {
   if (!input.startsWith('/')) return null;
   if (input.startsWith('//')) return null;
   return input;
+}
+
+// 카카오톡·SNS 공유 시 책 표지를 썸네일로 노출
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { bookId } = await params;
+  const supabase = await createServerSupabaseClient();
+  const { data: book } = await supabase
+    .from('book_items')
+    .select('title, cover_image')
+    .eq('id', bookId)
+    .single<{ title: string; cover_image: string | null }>();
+
+  if (!book) {
+    return { title: '플립북을 찾을 수 없어요 · BOOK by SMARTACT' };
+  }
+
+  const ogImage = book.cover_image && /^https?:\/\//i.test(book.cover_image) ? book.cover_image : undefined;
+  const title = `${book.title} · BOOK by SMARTACT`;
+  const description = `${book.title} — 플립북으로 넘겨보세요`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: 'book',
+      siteName: 'BOOK by SMARTACT',
+      images: ogImage ? [{ url: ogImage, alt: book.title }] : undefined,
+    },
+    twitter: {
+      card: ogImage ? 'summary_large_image' : 'summary',
+      title,
+      description,
+      images: ogImage ? [ogImage] : undefined,
+    },
+  };
 }
 
 export default async function BookPage({ params, searchParams }: PageProps) {

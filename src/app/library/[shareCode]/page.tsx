@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import BookCard from '@/components/BookCard';
 import { notFound } from 'next/navigation';
@@ -5,6 +6,61 @@ import type { Library, Book } from '@/types';
 
 interface PageProps {
   params: Promise<{ shareCode: string }>;
+}
+
+// 카카오톡·페이스북·트위터 등에 공유 시 표지 썸네일이 뜨도록 OG 메타데이터 생성.
+// 우선순위: 도서관 cover_image(http URL) > 첫 책의 cover_image > 없음
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { shareCode } = await params;
+  const supabase = await createServerSupabaseClient();
+
+  const { data: library } = await supabase
+    .from('book_libraries')
+    .select('title, description, cover_image, book_items(cover_image, sort_order)')
+    .eq('share_code', shareCode)
+    .eq('is_public', true)
+    .single<{
+      title: string;
+      description: string | null;
+      cover_image: string | null;
+      book_items: { cover_image: string | null; sort_order: number }[] | null;
+    }>();
+
+  if (!library) {
+    return { title: '도서관을 찾을 수 없어요 · BOOK by SMARTACT' };
+  }
+
+  // OG 이미지 결정
+  let ogImage: string | undefined;
+  if (library.cover_image && /^https?:\/\//i.test(library.cover_image)) {
+    ogImage = library.cover_image;
+  } else {
+    const items = (library.book_items ?? []).slice().sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    for (const b of items) {
+      if (b.cover_image) { ogImage = b.cover_image; break; }
+    }
+  }
+
+  const title = `${library.title} · BOOK by SMARTACT`;
+  const description = library.description ?? `${library.title} 공개 도서관 — 누구나 둘러볼 수 있어요`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: 'website',
+      siteName: 'BOOK by SMARTACT',
+      images: ogImage ? [{ url: ogImage, alt: library.title }] : undefined,
+    },
+    twitter: {
+      card: ogImage ? 'summary_large_image' : 'summary',
+      title,
+      description,
+      images: ogImage ? [ogImage] : undefined,
+    },
+  };
 }
 
 export default async function LibraryPage({ params }: PageProps) {
