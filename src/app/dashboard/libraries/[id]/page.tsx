@@ -31,6 +31,7 @@ export default function LibraryDetailPage() {
   const [showAddBooksModal, setShowAddBooksModal] = useState(false);
   const [availableBooks, setAvailableBooks] = useState<Book[]>([]);
   const [selectedToAdd, setSelectedToAdd] = useState<string[]>([]);
+  const [coverUploading, setCoverUploading] = useState(false);
 
   const supabase = createClient();
 
@@ -229,6 +230,38 @@ export default function LibraryDetailPage() {
     if (error) {
       setBooks(prev => prev.map(b => (b.id === book.id ? { ...b, title: book.title } : b)));
       alert('이름 변경에 실패했습니다.');
+    }
+  };
+
+  const handleCoverImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('이미지 파일만 업로드할 수 있어요 (jpg, png, webp 등).');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      alert('이미지가 너무 커요. 10MB 이하로 부탁드려요.');
+      return;
+    }
+    setCoverUploading(true);
+    try {
+      const ext = (file.name.split('.').pop() || 'png').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const safeExt = ext.length > 0 && ext.length <= 5 ? ext : 'png';
+      const filename = `library-covers/${libraryId}/${Date.now()}.${safeExt}`;
+      const { error: uploadErr } = await supabase.storage
+        .from('flipbooks')
+        .upload(filename, file, { upsert: true, contentType: file.type });
+      if (uploadErr) throw uploadErr;
+      const { data: { publicUrl } } = supabase.storage.from('flipbooks').getPublicUrl(filename);
+      await updateLibraryCover(publicUrl);
+    } catch (err) {
+      console.error('표지 이미지 업로드 실패:', err);
+      alert(`표지 이미지 업로드에 실패했어요.\n${err instanceof Error ? err.message : ''}`);
+    } finally {
+      setCoverUploading(false);
+      // 같은 파일 다시 선택할 수 있게 input value 리셋
+      e.target.value = '';
     }
   };
 
@@ -549,23 +582,65 @@ export default function LibraryDetailPage() {
               </button>
             </div>
 
-            {/* 첫 책 자동 옵션 */}
+            {/* 기본 옵션: 첫 책 자동 + 직접 업로드 */}
             <div className="mb-6">
               <h3 className="text-sm font-semibold text-gray-700 mb-2">기본</h3>
-              <button
-                onClick={() => updateLibraryCover(null)}
-                className={`group relative aspect-[3/2] w-full max-w-[180px] rounded-xl overflow-hidden border-2 transition ${
-                  !library.cover_image ? 'border-teal-500 ring-2 ring-teal-200' : 'border-gray-200 hover:border-teal-300'
-                }`}
-              >
-                <div className="w-full h-full bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
-                  <div className="text-center px-2">
-                    <div className="text-3xl mb-1">📚</div>
-                    <div className="text-xs font-semibold text-gray-700">첫 책 자동</div>
-                    <div className="text-[10px] text-gray-500 mt-0.5">책 표지 그대로</div>
+              <div className="grid grid-cols-2 gap-3 max-w-[420px]">
+                {/* 첫 책 자동 */}
+                <button
+                  onClick={() => updateLibraryCover(null)}
+                  className={`group relative aspect-[3/2] rounded-xl overflow-hidden border-2 transition ${
+                    !library.cover_image ? 'border-teal-500 ring-2 ring-teal-200' : 'border-gray-200 hover:border-teal-300'
+                  }`}
+                >
+                  <div className="w-full h-full bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+                    <div className="text-center px-2">
+                      <div className="text-3xl mb-1">📚</div>
+                      <div className="text-xs font-semibold text-gray-700">첫 책 자동</div>
+                      <div className="text-[10px] text-gray-500 mt-0.5">책 표지 그대로</div>
+                    </div>
                   </div>
-                </div>
-              </button>
+                </button>
+
+                {/* 직접 업로드 */}
+                <label
+                  className={`group relative aspect-[3/2] rounded-xl overflow-hidden border-2 transition cursor-pointer ${
+                    library.cover_image && /^https?:\/\//i.test(library.cover_image)
+                      ? 'border-teal-500 ring-2 ring-teal-200'
+                      : 'border-dashed border-gray-300 hover:border-teal-400'
+                  } ${coverUploading ? 'opacity-50 cursor-wait' : ''}`}
+                >
+                  {library.cover_image && /^https?:\/\//i.test(library.cover_image) ? (
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={library.cover_image} alt="업로드된 표지" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                        <span className="text-xs font-semibold text-white">📷 다른 이미지로 교체</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-amber-50 to-amber-100 flex items-center justify-center">
+                      <div className="text-center px-2">
+                        <div className="text-3xl mb-1">{coverUploading ? '⏳' : '📷'}</div>
+                        <div className="text-xs font-semibold text-amber-800">
+                          {coverUploading ? '업로드 중...' : '직접 업로드'}
+                        </div>
+                        <div className="text-[10px] text-amber-700 mt-0.5">jpg · png · webp</div>
+                      </div>
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleCoverImageUpload}
+                    disabled={coverUploading}
+                  />
+                </label>
+              </div>
+              <p className="text-[11px] text-gray-400 mt-2">
+                3:2 비율(예: 1200×800px) 권장 · 카카오톡 등 SNS 공유 썸네일에도 사용돼요 · 10MB 이하
+              </p>
             </div>
 
             {/* 카테고리별 템플릿 */}
