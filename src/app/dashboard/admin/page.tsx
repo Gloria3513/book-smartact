@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase';
+import { isIhAdmin } from '@/lib/ih-gate';
 import { EMOJIS } from '@/components/EmojiReactions';
 import type { Book, Library, User } from '@/types';
 
@@ -38,7 +39,11 @@ export default function AdminPage() {
       .eq('id', authUser.id)
       .single<User>();
 
-    if (profile?.role !== 'admin') {
+    // 관리자 게이트: user_profiles.role === 'admin' OR ih_admins 화이트리스트
+    // (둘 중 하나만 만족해도 통과 — ih_admins 만 등록된 통합 관리자도 들어올 수 있게)
+    const isLegacyAdmin = profile?.role === 'admin';
+    const isHubAdmin = await isIhAdmin(supabase);
+    if (!isLegacyAdmin && !isHubAdmin) {
       window.location.href = '/dashboard';
       return;
     }

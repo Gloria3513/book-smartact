@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase';
+import { ensureInstructorApproved } from '@/lib/ih-gate';
 import LibraryCard from '@/components/LibraryCard';
 import { EMOJIS } from '@/components/EmojiReactions';
 import type { Library, Book, User } from '@/types';
@@ -55,6 +56,10 @@ export default function DashboardPage() {
       window.location.href = '/login';
       return;
     }
+
+    // 강사허브 멤버십 게이트: 미승인이면 hub.smartact.kr/pending 으로 리다이렉트
+    const gate = await ensureInstructorApproved(supabase);
+    if (!gate.allowed) return;
 
     const { data: profile } = await supabase
       .from('user_profiles')
